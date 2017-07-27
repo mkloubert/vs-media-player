@@ -1,0 +1,2 @@
+Icons:
+    - /icon.png (Webalys; https://www.iconfinder.com/webalys; License: Free for commercial use)
