@@ -55,5 +55,8 @@
     "bugs": {
         "url": "https://github.com/mkloubert/vs-media-player/issues"
     },
-    "readmeFilename": "README.md"
+    "readmeFilename": "README.md",
+    "dependencies": {
+        "moment": "^2.18.1"
+    }
 }
