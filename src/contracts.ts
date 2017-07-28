@@ -55,9 +55,23 @@ export interface MediaPlayer extends vscode.Disposable {
      */
     readonly getPlaylists: () => PromiseLike<Playlist[]>;
     /**
+     * Returns the player status.
+     * 
+     * @return {PromiseLike<PlayerStatus>} The player status.
+     */
+    readonly getStatus: () => PromiseLike<PlayerStatus>;
+    /**
      * Gets if the player is connected or not.
      */
     readonly isConnected: boolean;
+    /**
+     * Plays / selects the next track.
+     */
+    readonly next: () => PromiseLike<boolean>;
+    /**
+     * Plays / selects the previous track.
+     */
+    readonly prev: () => PromiseLike<boolean>;
 }
 
 /**
@@ -97,6 +111,24 @@ export interface PlayerConfig {
 }
 
 /**
+ * A player status.
+ */
+export interface PlayerStatus {
+    /**
+     * Gets the underlyong player.
+     */
+    readonly player: MediaPlayer;
+    /**
+     * The state.
+     */
+    readonly state?: State;
+    /**
+     * The current track.
+     */
+    readonly track?: Track;
+}
+
+/**
  * A playlist.
  */
 export interface Playlist {
@@ -122,6 +154,20 @@ export interface Playlist {
      * Gets the underlying player.
      */
     readonly player: MediaPlayer;
+}
+
+/**
+ * List of states.
+ */
+export enum State {
+    /**
+     * Paused
+     */
+    Paused = 1,
+    /**
+     * Playing
+     */
+    Playing = 0,
 }
 
 /**

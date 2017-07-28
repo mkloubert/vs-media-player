@@ -25,6 +25,7 @@ import * as Events from 'events';
 import * as Moment from 'moment';
 import * as mplayer_contracts from './contracts';
 import * as mplayer_helpers from './helpers';
+import * as mplayer_players_controls from './players/controls';
 import * as mplayer_players_vlc from './players/vlc';
 import * as vscode from 'vscode';
 
@@ -56,7 +57,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     /**
      * Stores all connected players.
      */
-    protected _connectedPlayers: mplayer_contracts.MediaPlayer[];
+    protected _connectedPlayers: mplayer_players_controls.StatusBarController[];
     /**
      * Stores the extension context.
      */
@@ -138,24 +139,38 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
 
                         if (player) {
                             Promise.resolve( player.connect() ).then((hasConnected: boolean) => {
-                                if (mplayer_helpers.toBooleanSafe(hasConnected)) {
-                                    ME._connectedPlayers
-                                      .push(player);
-                                    
-                                    vscode.window.showInformationMessage(`[vs-media-player] Connection established to '${item.label}'.`).then(() => {
-                                    }, (err) => {
-                                        ME.log(`MediaPlayerController.connect(4): ${mplayer_helpers.toStringSafe(err)}`);
-                                    });
-                                }
-                                else {
-                                    vscode.window.showWarningMessage(`[vs-media-player] Player '${item.label}' is NOT connected!`).then(() => {
-                                    }, (err) => {
-                                        ME.log(`MediaPlayerController.connect(5): ${mplayer_helpers.toStringSafe(err)}`);
-                                    });
-                                }
+                                try {
+                                    if (mplayer_helpers.toBooleanSafe(hasConnected)) {
+                                        const NEW_CONTROLLER = new mplayer_players_controls.StatusBarController(player, PLAYER_CFG);
+                                        
+                                        ME._connectedPlayers
+                                          .push(NEW_CONTROLLER);
 
-                                COMPLETED(null,
-                                          mplayer_helpers.toBooleanSafe(hasConnected));
+                                        try {
+                                            NEW_CONTROLLER.initialize();
+                                        }
+                                        catch (e) {
+                                            ME.log(`MediaPlayerController.connect(5): ${mplayer_helpers.toStringSafe(e)}`);
+                                        }
+                                        
+                                        vscode.window.showInformationMessage(`[vs-media-player] Connection established to '${item.label}'.`).then(() => {
+                                        }, (err) => {
+                                            ME.log(`MediaPlayerController.connect(4): ${mplayer_helpers.toStringSafe(err)}`);
+                                        });
+                                    }
+                                    else {
+                                        vscode.window.showWarningMessage(`[vs-media-player] Player '${item.label}' is NOT connected!`).then(() => {
+                                        }, (err) => {
+                                            ME.log(`MediaPlayerController.connect(5): ${mplayer_helpers.toStringSafe(err)}`);
+                                        });
+                                    }
+
+                                    COMPLETED(null,
+                                            mplayer_helpers.toBooleanSafe(hasConnected));
+                                }
+                                catch (e) {
+                                    COMPLETED(e);   
+                                }
                             }).catch((err) => {
                                 COMPLETED(err);
                             });
@@ -309,6 +324,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             {
                 OLD_PLAYERS.forEach(op => {
                     mplayer_helpers.tryDispose(op);
+                    mplayer_helpers.tryDispose(op.player);
                 });
             }
 
@@ -333,7 +349,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
 
             try {
                 const CONNECTED_PLAYERS = ME._connectedPlayers.filter(x => x &&
-                                                                      mplayer_helpers.toBooleanSafe(x.isConnected));
+                                                                      mplayer_helpers.toBooleanSafe(x.player.isConnected));
                 if (CONNECTED_PLAYERS.length < 1) {
                     vscode.window.showWarningMessage('[vs-media-player] Please connect to at least one player!').then(() => {
                     }, (err) => {
@@ -390,7 +406,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                         });
 
                         if (TRACK_QUICK_PICKS.length > 0) {
-                            if (TRACK_QUICK_PICKS.length > 0) {
+                            if (TRACK_QUICK_PICKS.length > 1) {
                                 vscode.window.showQuickPick(TRACK_QUICK_PICKS, {
                                     placeHolder: `Select a track from playlist '${item.label}'...`,
                                 }).then((item) => {
@@ -445,7 +461,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                         });
 
                         if (PLAYLIST_QUICK_PICKS.length > 0) {
-                            if (PLAYLIST_QUICK_PICKS.length > 0) {
+                            if (PLAYLIST_QUICK_PICKS.length > 1) {
                                 vscode.window.showQuickPick(PLAYLIST_QUICK_PICKS, {
                                     placeHolder: `Select a playlist of player '${item.label}'...`,
                                 }).then((item) => {
@@ -472,8 +488,9 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     });
                 };
 
-                const PLAYER_QUICK_PICKS: PlayerQuickPickItem[] = CONNECTED_PLAYERS.map((p, i) => {
-                    const CFG: mplayer_contracts.PlayerConfig = p.config || <any>{};
+                const PLAYER_QUICK_PICKS: PlayerQuickPickItem[] = CONNECTED_PLAYERS.map((c, i) => {
+                    const PLAYER = c.player;
+                    const CFG: mplayer_contracts.PlayerConfig = c.config || <any>{};
 
                     let label = mplayer_helpers.toStringSafe(CFG.name).trim();
                     if ('' === label) {
@@ -485,11 +502,11 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     return {
                         label: label,
                         description: DESCRIPTION,
-                        player: p,
+                        player: PLAYER,
                     };
                 });
 
-                if (PLAYER_QUICK_PICKS.length > 0) {
+                if (PLAYER_QUICK_PICKS.length > 1) {
                     vscode.window.showQuickPick(PLAYER_QUICK_PICKS, {
                         placeHolder: 'Select the media player...',
                     }).then((item) => {

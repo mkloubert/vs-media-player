@@ -63,12 +63,12 @@ export function activate(context: vscode.ExtensionContext) {
     controller = new mplayer_controller.MediaPlayerController(context, OUTPUT_CHANNEL, pkgFile);
 
     // connect to player
-    const CMD_CONNECT = vscode.commands.registerCommand('extension.mediaPlayer.connect', () => {
-        return controller.connect();
+    const CMD_CONNECT = vscode.commands.registerCommand('extension.mediaPlayer.connect', async () => {
+        await controller.connect();
     });
 
-    const SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', () => {
-        return controller.selectItemOfPlaylist();
+    const SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', async () => {
+        await controller.selectItemOfPlaylist();
     });
 
     // notfiy setting changes

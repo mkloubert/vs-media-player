@@ -60,7 +60,15 @@ export function asArray<T = any>(val: T | T[]): T[] {
  */
 export function createSimpleCompletedAction<TResult>(resolve: (value?: TResult | PromiseLike<TResult>) => void,
                                                      reject?: (reason: any) => void): SimpleCompletedAction<TResult> {
+    let completedInvoked = false;
+
     return (err, result?) => {
+        if (completedInvoked) {
+            return;
+        }
+
+        completedInvoked = true;
+        
         if (err) {
             if (reject) {
                 reject(err);
@@ -215,7 +223,7 @@ export function tryDispose(obj: { dispose?: () => any }): boolean {
         return true;
     }
     catch (e) {
-        
+        log(`[ERROR] helpers.tryDispose(): ${toStringSafe(e)}`)
 
         return false;
     }
