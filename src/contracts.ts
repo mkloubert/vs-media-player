@@ -80,6 +80,10 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly getStatus: () => PromiseLike<PlayerStatus>;
     /**
+     * The ID.
+     */
+    readonly id: number;
+    /**
      * Gets if the player is connected or not.
      */
     readonly isConnected: boolean;
@@ -107,6 +111,14 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
      */
     readonly prev: () => PromiseLike<boolean>;
+    /**
+     * Sets the volume of the player.
+     * 
+     * @param {number} newValue The new value (0 = 0%, 1.0 = 100%)
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly setVolume: (newValue: number) => PromiseLike<boolean>;
     /**
      * Decreases the volume.
      * 
@@ -148,8 +160,16 @@ export interface PlayerConfig {
      * 
      * The ID of the entry.
      */
-    readonly __id: any;
+    readonly __id: number;
 
+    /**
+     * A custom offset value for controling the priority of the buttons.
+     */
+    readonly buttonPriorityOffset?: number;
+    /**
+     * Connect on startup or not.
+     */
+    readonly connectOnStartup?: boolean;
     /**
      * A description for the player.
      */
@@ -158,6 +178,38 @@ export interface PlayerConfig {
      * A (display) name for the player.
      */
     readonly name?: string;
+    /**
+     * Show button for playing NEXT track or not.
+     */
+    readonly showNextButton?: boolean;
+    /**
+     * Show player name or not.
+     */
+    readonly showPlayerName?: boolean;
+    /**
+     * Show button for playing PREVIOUS track or not.
+     */
+    readonly showPrevButton?: boolean;
+    /**
+     * Show buttons on the RIGHT side or not.
+     */
+    readonly showRight?: boolean;
+    /**
+     * Show button for toggle mute state or not.
+     */
+    readonly showToggleMuteButton?: boolean;
+    /**
+     * Show button for toggle play state or not.
+     */
+    readonly showTogglePlayButton?: boolean;
+    /**
+     * Show button for selecting a track or not.
+     */
+    readonly showTrackSelectorButton?: boolean;
+    /**
+     * Show buttons to change volume or not.
+     */
+    readonly showVolumeButtons?: boolean;
     /**
      * The type.
      */
@@ -168,6 +220,14 @@ export interface PlayerConfig {
  * A player status.
  */
 export interface PlayerStatus {
+    /**
+     * Gets if the player is currently connected or not.
+     */
+    readonly isConnected: boolean;
+    /**
+     * Gets if the player is in 'mute' state or not.
+     */
+    readonly isMute?: boolean;
     /**
      * Gets the underlyong player.
      */
@@ -180,6 +240,10 @@ export interface PlayerStatus {
      * The current track.
      */
     readonly track?: Track;
+    /**
+     * The current volumn (0 = 0%, 1.0 = 100%)
+     */
+    readonly volume?: number;
 }
 
 /**

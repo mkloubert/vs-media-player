@@ -26,8 +26,10 @@ import * as Moment from 'moment';
 import * as mplayer_contracts from './contracts';
 import * as mplayer_helpers from './helpers';
 import * as mplayer_players_controls from './players/controls';
+import * as mplayer_players_helpers from './players/helpers';
 import * as mplayer_players_vlcplayer from './players/vlcplayer';
 import * as vscode from 'vscode';
+import * as Workflows from 'node-workflows';
 
 
 interface PlayerConfigQuickPickItem extends vscode.QuickPickItem {
@@ -45,6 +47,7 @@ interface PlaylistQuickPickItem extends vscode.QuickPickItem {
 interface TrackQuickPickItem extends vscode.QuickPickItem {
     readonly track: mplayer_contracts.Track;
 }
+
 
 let nextPlayerConfigId = -1;
 
@@ -90,6 +93,24 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
         this._PACKAGE_FILE = pkgFile;
     }
 
+    protected addStatusBarControls(controls: mplayer_players_controls.StatusBarController): boolean {
+        if (controls) {
+            this._connectedPlayers
+                .push(controls);
+
+            try {
+                controls.initialize();
+            }
+            catch (e) {
+                this.log(`MediaPlayerController.addStatusBarControls(): ${mplayer_helpers.toStringSafe(e)}`);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Gets the current configuration.
      */
@@ -126,69 +147,31 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                         return;
                     }
 
-                    const PLAYER_CFG = item.config;
-                    
-                    try {
-                        const TYPE = mplayer_helpers.normalizeString(PLAYER_CFG.type);
+                    mplayer_players_helpers.connectTo(item.config).then((newController) => {
+                        let result = false;
 
-                        let player: mplayer_contracts.MediaPlayer;
-
-                        switch (TYPE) {
-                            case 'vlc':
-                                player = new mplayer_players_vlcplayer.VLCPlayer(<mplayer_contracts.VLCPlayerConfig>PLAYER_CFG);
-                                break;
-                        }
-
-                        if (player) {
-                            Promise.resolve( player.connect() ).then((hasConnected: boolean) => {
-                                try {
-                                    if (mplayer_helpers.toBooleanSafe(hasConnected)) {
-                                        const NEW_CONTROLLER = new mplayer_players_controls.StatusBarController(player, PLAYER_CFG);
-                                        
-                                        ME._connectedPlayers
-                                          .push(NEW_CONTROLLER);
-
-                                        try {
-                                            NEW_CONTROLLER.initialize();
-                                        }
-                                        catch (e) {
-                                            ME.log(`MediaPlayerController.connect(5): ${mplayer_helpers.toStringSafe(e)}`);
-                                        }
-                                        
-                                        vscode.window.showInformationMessage(`[vs-media-player] Connection established to '${item.label}'.`).then(() => {
-                                        }, (err) => {
-                                            ME.log(`MediaPlayerController.connect(4): ${mplayer_helpers.toStringSafe(err)}`);
-                                        });
-                                    }
-                                    else {
-                                        vscode.window.showWarningMessage(`[vs-media-player] Player '${item.label}' is NOT connected!`).then(() => {
-                                        }, (err) => {
-                                            ME.log(`MediaPlayerController.connect(5): ${mplayer_helpers.toStringSafe(err)}`);
-                                        });
-                                    }
-
-                                    COMPLETED(null,
-                                            mplayer_helpers.toBooleanSafe(hasConnected));
-                                }
-                                catch (e) {
-                                    COMPLETED(e);   
-                                }
-                            }).catch((err) => {
-                                COMPLETED(err);
-                            });
+                        if (false !== newController) {
+                            if (newController) {
+                                ME.addStatusBarControls(newController);
+                            }
+                            else {
+                                vscode.window.showWarningMessage(`[vs-media-player] Player type is NOT supported!`).then(() => {
+                                }, (err) => {
+                                    ME.log(`MediaPlayerController.connect(4): ${mplayer_helpers.toStringSafe(err)}`);
+                                });
+                            }
                         }
                         else {
-                            vscode.window.showWarningMessage(`[vs-media-player] Player type '${TYPE}' is NOT supported!`).then(() => {
+                            vscode.window.showWarningMessage(`[vs-media-player] Player '${item.label}' is NOT connected!`).then(() => {
                             }, (err) => {
                                 ME.log(`MediaPlayerController.connect(3): ${mplayer_helpers.toStringSafe(err)}`);
                             });
-
-                            COMPLETED(null);
                         }
-                    }
-                    catch (e) {
-                        COMPLETED(e);
-                    }
+
+                        COMPLETED(null, result);
+                    }).catch((err) => {
+                        COMPLETED(err);
+                    });
                 };
 
                 const QUICK_PICKS: PlayerConfigQuickPickItem[] = PLAYERS.map((c, i) => {
@@ -316,33 +299,72 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     public reloadConfiguration() {
         const ME = this;
 
+        const SHOW_ERROR = (err: any) => {
+            vscode.window.showErrorMessage(`Could not (re)load config: ${mplayer_helpers.toStringSafe(err)}`).then(() => {
+            }, (e) => {
+                ME.log(`MediaPlayerController.reloadConfiguration(1): ${mplayer_helpers.toStringSafe(err)}`);
+                ME.log(`MediaPlayerController.reloadConfiguration(2): ${mplayer_helpers.toStringSafe(e)}`);
+            });
+        };
+
         try {
             const CFG: mplayer_contracts.Configuration = vscode.workspace.getConfiguration("media.player") ||
                                                          <any>{};
+
+            const WF = Workflows.create();
 
             // dispose old players
             const OLD_PLAYERS = ME._connectedPlayers;
             if (OLD_PLAYERS)
             {
-                OLD_PLAYERS.forEach(op => {
-                    mplayer_helpers.tryDispose(op);
-                    mplayer_helpers.tryDispose(op.player);
+                OLD_PLAYERS.filter(op => op).forEach(op => {
+                    WF.next(() => {
+                        mplayer_players_helpers.disposeControlsAndPlayer(op);
+                    });
                 });
             }
 
+            WF.next(() => {
+                ME._connectedPlayers = [];
+            });
+
             if (CFG.players) {
+                // update player config entries
+
                 CFG.players.filter(p => p).forEach(p => {
                     const ID = ++nextPlayerConfigId;
 
-                    (<any>p)['__id'] = ID;
+                    WF.next(() => {
+                        (<any>p)['__id'] = ID;
+                    });
+
+                    if (mplayer_helpers.toBooleanSafe(p.connectOnStartup, true)) {
+                        WF.next(async () => {
+                            try {
+                                const NEW_CONTROLS = await mplayer_players_helpers.connectTo(p);
+                                if (NEW_CONTROLS) {
+                                    ME.addStatusBarControls(NEW_CONTROLS);
+                                }
+                                else {
+                                    //TODO: 
+                                }
+                            }
+                            catch (e) {
+                                //TODO: show error message
+                            }
+                        });
+                    }
                 });
             }
 
-            this._connectedPlayers = [];
-            this._config = CFG;
+            WF.start().then(() => {
+                ME._config = CFG;
+            }).catch((err) => {
+                SHOW_ERROR(err);
+            });
         }
         catch (e) {
-            ME.log(`[ERROR] MediaPlayerController.reloadConfiguration(1): ${mplayer_helpers.toStringSafe(e)}`);
+            SHOW_ERROR(e);
         }
     }
 

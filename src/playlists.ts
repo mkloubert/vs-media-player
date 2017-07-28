@@ -37,6 +37,8 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
     const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
 
     const PLAYLISTS = ((await player.getPlaylists()) || []).filter(p => p);
+
+    
     for (let i = 0; i < PLAYLISTS.length; i++) {
         const PL = PLAYLISTS[i];
 
@@ -57,7 +59,7 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
 
         const PL_ITEM: mplayer_contracts.ActionQuickPickItem = {
             description: '',
-            label: '$(checklist) ' + label,
+            label: '$(list-unordered) ' + label,
             state: PL,
         };
         QUICK_PICKS.push(PL_ITEM);
@@ -80,7 +82,7 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
                     }
                 },
                 description: '',
-                label: '    $(triangle-right) ' + ` [${j + 1}] ${label}`,
+                label: "  $(triangle-right) " + ` [${j + 1}] ${label}`,
                 state: T,
             };
             QUICK_PICKS.push(T_ITEM);

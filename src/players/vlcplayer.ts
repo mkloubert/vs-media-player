@@ -43,6 +43,10 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      */
     protected readonly _CONFIG: mplayer_contracts.VLCPlayerConfig;
     /**
+     * Stores the ID.
+     */
+    protected readonly _ID: number;
+    /**
      * Stores if the player is currently connected or not.
      */
     protected _isConnected = false;
@@ -52,13 +56,14 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      * 
      * @param {mplayer_contracts.VLCPlayerConfig} cfg The underlying configuration.
      */
-    constructor(cfg: mplayer_contracts.VLCPlayerConfig) {
+    constructor(id: number, cfg: mplayer_contracts.VLCPlayerConfig) {
         super();
 
         if (!cfg) {
             cfg = <any>{};
         }
 
+        this._ID = id;
         this._CONFIG = cfg;
     }
 
@@ -92,10 +97,12 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
         return new Promise<boolean>((resolve, reject) => {
             if (!ME._isConnected) {
                 ME.getPlaylists().then(() => {
-                    ME._isConnected = true;
+                    ME.updateConnectedState(true);
 
                     resolve(true);
                 }).catch((err) => {
+                    ME.updateConnectedState(false, err);
+
                     reject(err);
                 });
             }
@@ -149,6 +156,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      */
     protected createCompletedAction<TResult>(resolve: (value?: TResult | PromiseLike<TResult>) => void,
                                              reject?: (reason: any) => void): mplayer_helpers.SimpleCompletedAction<TResult> {
+        const ME = this;
         let completedInvoked = false;
 
         return (err, result?) => {
@@ -159,6 +167,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
             completedInvoked = true;
             
             if (err) {
+                ME.updateConnectedState(false, err);
+
                 if (reject) {
                     reject(err);
                 }
@@ -360,7 +370,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     public dispose() {
         this.removeAllListeners();
 
-        this._isConnected = null;
+        this.updateConnectedState(null);
     }
 
     /** @inheritdoc */
@@ -482,24 +492,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
             try {
-                const BASE_URL = ME.baseURL;
-
-                const HEADERS: any = {};
-
-                const AUTH = mplayer_helpers.toStringSafe(BASE_URL.auth);
-                if (AUTH.indexOf(':') > -1) {
-                    const PARTS = AUTH.split(':');
-
-                    HEADERS['Authorization'] = `Basic ${new Buffer(AUTH, 'ascii').toString('base64')}`;
-                }
-                
-                const OPTS: HTTP.RequestOptions = {
-                    headers: HEADERS,
-                    host: BASE_URL.hostname,
-                    path: '/requests/status.xml',
-                    port: parseInt(BASE_URL.port),
-                    method: 'GET',
-                };
+                const OPTS = ME.createBasicRequestOptions();
+                OPTS.path = '/requests/status.xml';
 
                 const REQUEST = HTTP.request(OPTS, (resp) => {
                     try {
@@ -517,15 +511,36 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                             }
                                             else {
                                                 const STATUS: mplayer_contracts.PlayerStatus = {
+                                                    isConnected: undefined,
                                                     player: ME,
                                                     state: mplayer_contracts.State.Stopped,
                                                 };
+
+                                                // STATUS.isConnected
+                                                Object.defineProperty(STATUS, 'isConnected', {
+                                                    enumerable: true,
+                                                    get: function() {
+                                                        return this.player.isConnected;
+                                                    }
+                                                });
+
+                                                // STATUS.isMute
+                                                Object.defineProperty(STATUS, 'isMute', {
+                                                    enumerable: true,
+                                                    get: function() {
+                                                        const V = this.volume;
+                                                        if (!isNaN(V)) {
+                                                            return V <= 0.0;
+                                                        }
+                                                    }
+                                                });
 
                                                 let nextAction = () => {
                                                     COMPLETED(null, STATUS);
                                                 };
 
                                                 if (xml['root']) {
+                                                    // state
                                                     mplayer_helpers.asArray(xml['root']['state']).filter(x => x).forEach(x => {
                                                         let state: mplayer_contracts.State;
 
@@ -540,6 +555,20 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                         }
 
                                                         (<any>STATUS)['state'] = state;
+                                                    });
+
+                                                    // volume
+                                                    mplayer_helpers.asArray(xml['root']['volume']).filter(x => x).forEach(x => {
+                                                        let vol = parseFloat( mplayer_helpers.toStringSafe(x).trim() );
+                                                        if (!isNaN(vol)) {
+                                                            if (vol < 0.0) {
+                                                                vol = 0;
+                                                            }
+
+                                                            vol = vol / 256.0;  // 256 => 100%
+
+                                                            (<any>STATUS)['volume'] = vol;
+                                                        }
                                                     });
 
                                                     if (xml['root']['currentplid']) {
@@ -640,6 +669,11 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                 COMPLETED(e);
             }
         });
+    }
+
+    /** @inheritdoc */
+    public get id(): number {
+        return this._ID;
     }
 
     /** @inheritdoc */
@@ -841,6 +875,99 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                 COMPLETED(e);
             }
         });
+    }
+
+    /** @inheritdoc */
+    public setVolume(newValue: number): Promise<boolean> {
+        newValue = parseFloat( mplayer_helpers.toStringSafe(newValue).trim() );
+        if (isNaN(newValue)) {
+            newValue = 1.0;
+        }
+
+        newValue = Math.max(0.0, newValue);
+
+        newValue = Math.floor( newValue * 256.0 );
+        
+        const ME = this;
+
+        console.log(`newValue: ${newValue}`);
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                try {
+                    const OPTS = ME.createBasicRequestOptions();
+                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('volume') +
+                                                     '&val=' + encodeURIComponent( '' + newValue );
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Updates the 'connected' state.
+     * 
+     * @param {boolean} newState The new state.
+     * @param {any} [err] An error (if occurred).
+     * 
+     * @return {boolean} State has been updated or not.
+     */
+    protected updateConnectedState(newState: boolean, err?: any): boolean {
+        const ME = this;
+
+        if (this._isConnected !== newState) {
+            this._isConnected = newState;
+
+            let eventName: string = null;
+            const EVENT_ARGS = [ err ];
+
+            if (null !== newState) {
+                if (newState) {
+                    eventName = 'connected';
+                }
+                else {
+                    eventName = 'disconnected';
+                }
+            }
+            else {
+                eventName = 'disposed';
+            }
+
+            if (null !== eventName) {
+                ME.emit
+                  .apply(ME, [ eventName ].concat( EVENT_ARGS ));
+            }
+
+            return true;
+        }
+        
+        return false;
     }
 
     /** @inheritdoc */
