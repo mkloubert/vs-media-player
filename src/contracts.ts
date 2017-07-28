@@ -24,14 +24,40 @@
 import * as vscode from 'vscode';
 
 
+/**
+ * Extension settings.
+ */
 export interface Configuration extends vscode.WorkspaceConfiguration {
-
+    /**
+     * A list of one or more player settings.
+     */
+    players?: PlayerConfig[];
 }
 
 /**
  * A media player.
  */
 export interface MediaPlayer extends vscode.Disposable {
+    /**
+     * Gets the underlying config.
+     */
+    readonly config?: PlayerConfig;
+    /**
+     * Connects to the player.
+     * 
+     * @memberof MediaPlayer
+     */
+    readonly connect: () => any;
+    /**
+     * Returns the list of playlists.
+     * 
+     * @return {PromiseLike<Playlist[]>} The promise with the playlists.
+     */
+    readonly getPlaylists: () => PromiseLike<Playlist[]>;
+    /**
+     * Gets if the player is connected or not.
+     */
+    readonly isConnected: boolean;
 }
 
 /**
@@ -50,4 +76,99 @@ export interface PackageFile {
      * The version string.
      */
     version: string;
+}
+
+/**
+ * A player config entry.
+ */
+export interface PlayerConfig {
+    /**
+     * A description for the player.
+     */
+    description?: string;
+    /**
+     * A (display) name for the player.
+     */
+    name?: string;
+    /**
+     * The type.
+     */
+    type?: "vlc";
+}
+
+/**
+ * A playlist.
+ */
+export interface Playlist {
+    /**
+     * Gets the description (if available).
+     */
+    readonly description?: string;
+    /**
+     * Returns the list of tracks.
+     * 
+     * @returns {PromiseLike<Track[]>} The promise with the tracks.
+     */
+    readonly getTracks: () => PromiseLike<Track[]>;
+    /**
+     * Gets the ID.
+     */
+    readonly id: any;
+    /**
+     * Gets the name (if available).
+     */
+    readonly name?: string;
+    /**
+     * Gets the underlying player.
+     */
+    readonly player: MediaPlayer;
+}
+
+/**
+ * A playlist.
+ */
+export interface Track {
+    /**
+     * Gets the description (if available).
+     */
+    readonly description?: string;
+    /**
+     * Gets the ID.
+     */
+    readonly id: any;
+    /**
+     * Gets the name.
+     */
+    readonly name: string;
+    /**
+     * Plays the track.
+     * 
+     * @return {PromiseLike<boolean>} The promise with the flag that indicates
+     *                                if operation was successful or not.
+     */
+    readonly play: () => PromiseLike<boolean>;
+    /**
+     * Gets the underlying playlist.
+     */
+    readonly playlist: Playlist;
+}
+
+/**
+ * A VLC player config entry.
+ */
+export interface VLCPlayerConfig extends PlayerConfig {
+    /**
+     * The host of the HTTP service.
+     */
+    host?: string;
+    /**
+     * The password to use.
+     */
+    password?: string;
+    /**
+     * The TCP port of the HTTP service.
+     */
+    port?: number;
+    /** @inheritdoc */
+    type: "vlc";
 }

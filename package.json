@@ -28,8 +28,65 @@
                 "command": "extension.mediaPlayer.connect",
                 "title": "Connect",
                 "category": "Media Player"
+            },
+            {
+                "command": "extension.mediaPlayer.selectItemOfPlaylist",
+                "title": "Select item of playlist",
+                "category": "Media Player"
             }
-        ]
+        ],
+        "configuration": {
+            "properties": {
+                "media.player": {
+                    "type": "object",
+                    "properties": {
+                        "players": {
+                            "description": "One or more players to configure.",
+                            "type": "array",
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "description": "A VLC player.",
+                                        "type": "object",
+                                        "properties": {
+                                            "description": {
+                                                "type": "string",
+                                                "description": "A description for the player."
+                                            },
+                                            "host": {
+                                                "type": "string",
+                                                "description": "The host of the (Lua) HTTP service.",
+                                                "default": "localhost"
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "description": "A (display) name for the player."
+                                            },
+                                            "port": {
+                                                "type": "integer",
+                                                "description": "The TCP port of the (Lua) HTTP service.",
+                                                "default": 8080,
+                                                "minimum": 0,
+                                                "maximum": 65535
+                                            },
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "vlc"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "type"
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
@@ -38,11 +95,12 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^2.0.3",
-        "vscode": "^1.0.0",
-        "mocha": "^2.3.3",
+        "@types/mocha": "^2.2.32",
         "@types/node": "^6.0.40",
-        "@types/mocha": "^2.2.32"
+        "@types/xml2js": "^0.4.0",
+        "mocha": "^2.3.3",
+        "typescript": "^2.0.3",
+        "vscode": "^1.0.0"
     },
     "icon": "icon.png",
     "author": {
@@ -57,6 +115,7 @@
     },
     "readmeFilename": "README.md",
     "dependencies": {
-        "moment": "^2.18.1"
+        "moment": "^2.18.1",
+        "xml2js": "^0.4.17"
     }
 }

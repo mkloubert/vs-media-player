@@ -64,7 +64,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     // connect to player
     const CMD_CONNECT = vscode.commands.registerCommand('extension.mediaPlayer.connect', () => {
+        return controller.connect();
     });
+
+    const SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', () => {
+        return controller.selectItemOfPlaylist();
+    });
+
+    // notfiy setting changes
+    context.subscriptions
+           .push(vscode.workspace.onDidChangeConfiguration(controller.onDidChangeConfiguration, controller));
 
     // commands
     context.subscriptions

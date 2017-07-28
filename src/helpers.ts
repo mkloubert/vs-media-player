@@ -21,8 +21,123 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as HTTP from 'http';
 import * as Moment from 'moment';
+import * as vscode from 'vscode';
 
+
+/**
+ * Describes a simple 'completed' action.
+ * 
+ * @param {any} err The occurred error.
+ * @param {TResult} [result] The result.
+ */
+export type SimpleCompletedAction<TResult> = (err: any, result?: TResult) => void;
+
+
+/**
+ * Returns a value as array.
+ * 
+ * @param {T | T[]} val The value.
+ * 
+ * @return {T[]} The value as array.
+ */
+export function asArray<T = any>(val: T | T[]): T[] {
+    if (!Array.isArray(val)) {
+        return [ val ];
+    }
+
+    return val;
+}
+
+/**
+ * Creates a simple 'completed' callback for a promise.
+ * 
+ * @param {Function} resolve The 'succeeded' callback.
+ * @param {Function} reject The 'error' callback.
+ * 
+ * @return {SimpleCompletedAction<TResult>} The created action.
+ */
+export function createSimpleCompletedAction<TResult>(resolve: (value?: TResult | PromiseLike<TResult>) => void,
+                                                     reject?: (reason: any) => void): SimpleCompletedAction<TResult> {
+    return (err, result?) => {
+        if (err) {
+            if (reject) {
+                reject(err);
+            }
+        }
+        else {
+            if (resolve) {
+                resolve(result);
+            }
+        }
+    };
+}
+
+/**
+ * Loads the body from a HTTP response.
+ * 
+ * @param {HTTP.IncomingMessage} resp The response.
+ * 
+ * @return {Promise<Buffer>} The promise.
+ */
+export function getHttpBody(resp: HTTP.IncomingMessage): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+        const COMPLETED = createSimpleCompletedAction(resolve, reject);
+
+        if (!resp) {
+            COMPLETED(null);
+            return;
+        }
+
+        let body = Buffer.alloc(0);
+
+        try {
+            const APPEND_CHUNK = (chunk: Buffer): boolean => {
+                try {
+                    if (chunk) {
+                        body = Buffer.concat([body, chunk]);
+                    }
+
+                    return true;
+                }
+                catch (e) {
+                    COMPLETED(e);
+                    return false;
+                }
+            };
+
+            resp.on('data', (chunk: Buffer) => {
+                APPEND_CHUNK(chunk);
+            });
+
+            resp.on('end', (chunk: Buffer) => {
+                if (APPEND_CHUNK(chunk)) {
+                    COMPLETED(null, body);
+                }
+            });
+
+            resp.on('error', (err) => {
+                COMPLETED(err);
+            });
+        }
+        catch (e) {
+            COMPLETED(e);
+        }
+    });
+}
+
+/**
+ * Checks if a value is (null) or (undefined).
+ * 
+ * @param {any} val The value to check.
+ * 
+ * @return {boolean} Is (null)/(undefined) or not.
+ */
+export function isNullOrUndefined(val: any): boolean {
+    return null === val ||
+           'undefined' === typeof val;
+}
 
 /**
  * Logs a message.
@@ -37,15 +152,35 @@ export function log(msg: any) {
 }
 
 /**
- * Checks if a value is (null) or (undefined).
+ * Normalizes a value as string so that is comparable.
  * 
- * @param {any} val The value to check.
+ * @param {any} val The value to convert.
+ * @param {(str: string) => string} [normalizer] The custom normalizer.
  * 
- * @return {boolean} Is (null)/(undefined) or not.
+ * @return {string} The normalized value.
  */
-export function isNullOrUndefined(val: any): boolean {
-    return null === val ||
-           'undefined' === typeof val;
+export function normalizeString(val: any, normalizer?: (str: string) => string): string {
+    if (!normalizer) {
+        normalizer = (str) => str.toLowerCase().trim();
+    }
+
+    return normalizer(toStringSafe(val));
+}
+
+/**
+ * Converts a value to a boolean.
+ * 
+ * @param {any} val The value to convert.
+ * @param {any} defaultValue The value to return if 'val' is (null) or (undefined).
+ * 
+ * @return {boolean} The converted value.
+ */
+export function toBooleanSafe(val: any, defaultValue: any = false): boolean {
+    if (isNullOrUndefined(val)) {
+        return defaultValue;
+    }
+
+    return !!val;
 }
 
 /**
@@ -62,4 +197,26 @@ export function toStringSafe(val: any, defValue: any = ''): string {
     }
 
     return '' + val;
+}
+
+/**
+ * Tries to dispose an object.
+ * 
+ * @param {Object} obj The object to dispose.
+ * 
+ * @return {boolean} Operation was successful or not.
+ */
+export function tryDispose(obj: { dispose?: () => any }): boolean {
+    try {
+        if (obj && obj.dispose) {
+            obj.dispose();
+        }
+
+        return true;
+    }
+    catch (e) {
+        
+
+        return false;
+    }
 }
