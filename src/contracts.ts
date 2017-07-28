@@ -25,19 +25,38 @@ import * as vscode from 'vscode';
 
 
 /**
+ * A quick pick item based on an action.
+ */
+export interface ActionQuickPickItem extends vscode.QuickPickItem {
+    /**
+     * The action.
+     * 
+     * @param {any} state The value from 'state' property.
+     * @param {ActionQuickPickItem} item The underlying object.
+     * 
+     * @return {any} The result.
+     */
+    action?: (state: any, item: ActionQuickPickItem) => any;
+    /**
+     * The value for the 1st argument of the action.
+     */
+    state?: any;
+}
+
+/**
  * Extension settings.
  */
 export interface Configuration extends vscode.WorkspaceConfiguration {
     /**
      * A list of one or more player settings.
      */
-    players?: PlayerConfig[];
+    readonly players?: PlayerConfig[];
 }
 
 /**
  * A media player.
  */
-export interface MediaPlayer extends vscode.Disposable {
+export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
     /**
      * Gets the underlying config.
      */
@@ -66,12 +85,40 @@ export interface MediaPlayer extends vscode.Disposable {
     readonly isConnected: boolean;
     /**
      * Plays / selects the next track.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
      */
     readonly next: () => PromiseLike<boolean>;
     /**
+     * Pauses playing.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly pause: () => PromiseLike<boolean>;
+    /**
+     * Continues playing.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly play: () => PromiseLike<boolean>;
+    /**
      * Plays / selects the previous track.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
      */
     readonly prev: () => PromiseLike<boolean>;
+    /**
+     * Decreases the volume.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly volumeDown: () => PromiseLike<boolean>;
+    /**
+     * Increases the volume.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly volumeUp: () => PromiseLike<boolean>;
 }
 
 /**
@@ -81,15 +128,15 @@ export interface PackageFile {
     /**
      * The display name.
      */
-    displayName: string;
+    readonly displayName: string;
     /**
      * The (internal) name.
      */
-    name: string;
+    readonly name: string;
     /**
      * The version string.
      */
-    version: string;
+    readonly version: string;
 }
 
 /**
@@ -97,17 +144,24 @@ export interface PackageFile {
  */
 export interface PlayerConfig {
     /**
+     * [INTERNAL USE]
+     * 
+     * The ID of the entry.
+     */
+    readonly __id: any;
+
+    /**
      * A description for the player.
      */
-    description?: string;
+    readonly description?: string;
     /**
      * A (display) name for the player.
      */
-    name?: string;
+    readonly name?: string;
     /**
      * The type.
      */
-    type?: "vlc";
+    readonly type?: "vlc";
 }
 
 /**
@@ -161,13 +215,17 @@ export interface Playlist {
  */
 export enum State {
     /**
+     * Stopped
+     */
+    Stopped = 0,
+    /**
      * Paused
      */
     Paused = 1,
     /**
      * Playing
      */
-    Playing = 0,
+    Playing = 2,
 }
 
 /**
@@ -206,15 +264,15 @@ export interface VLCPlayerConfig extends PlayerConfig {
     /**
      * The host of the HTTP service.
      */
-    host?: string;
+    readonly host?: string;
     /**
      * The password to use.
      */
-    password?: string;
+    readonly password?: string;
     /**
      * The TCP port of the HTTP service.
      */
-    port?: number;
+    readonly port?: number;
     /** @inheritdoc */
-    type: "vlc";
+    readonly type: "vlc";
 }

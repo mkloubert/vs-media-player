@@ -23,6 +23,7 @@
 
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
+import * as mplayer_playlists from '../playlists';
 import * as vscode from 'vscode';
 
 
@@ -125,6 +126,7 @@ export class StatusBarController implements vscode.Disposable {
                 btn.show();
             }
 
+            // previous
             const CMD_PREV = `${COMMAND_PREFIX}prev`;
             {
                 let btn: vscode.StatusBarItem;
@@ -141,15 +143,28 @@ export class StatusBarController implements vscode.Disposable {
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem());
                 btn.command = CMD_PREV;
                 btn.text = '$(chevron-left)';
+                btn.tooltip = 'PREVIOUS track';
                 btn.show();
             }
 
+            // toggle play
             let togglePlayButton: vscode.StatusBarItem;
             const CMD_TOGGLE_PLAY = `${COMMAND_PREFIX}togglePlay`;
             {
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_PLAY, async () => {
                     try {
-                        
+                        const STATUS = await ME.player.getStatus();
+                        if (STATUS) {
+                            switch (STATUS.state) {
+                                case mplayer_contracts.State.Playing:
+                                    await ME.player.pause();
+                                    break;
+
+                                default:
+                                    await ME.player.play();
+                                    break;
+                            }
+                        }
                     }
                     catch (e) {
                         mplayer_helpers.log(`[ERROR] StatusBarController(togglePlay): ${mplayer_helpers.toStringSafe(e)}`);
@@ -162,6 +177,7 @@ export class StatusBarController implements vscode.Disposable {
                 togglePlayButton.show();
             }
 
+            // next
             const CMD_NEXT = `${COMMAND_PREFIX}next`;
             {
                 let btn: vscode.StatusBarItem;
@@ -176,16 +192,71 @@ export class StatusBarController implements vscode.Disposable {
                 }));
 
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem());
-                btn.command = CMD_PREV;
+                btn.command = CMD_NEXT;
                 btn.text = '$(chevron-right)';
+                btn.tooltip = 'NEXT track';
                 btn.show();
             }
 
-            let trackButton: vscode.StatusBarItem;
+            // volumn down
+            const CMD_VOLUME_DOWN = `${COMMAND_PREFIX}volumeDown`;
             {
+                let btn: vscode.StatusBarItem;
+
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_VOLUME_DOWN, async () => {
+                    try {
+                        await ME.player.volumeDown();
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(volumeDown): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                }));
+
+                NEW_ITEMS.push(btn = vscode.window.createStatusBarItem());
+                btn.command = CMD_VOLUME_DOWN;
+                btn.text = '$(arrow-down)';
+                btn.tooltip = 'Volume DOWN';
+                btn.show();
+            }
+
+            // volumn up
+            const CMD_VOLUME_UP = `${COMMAND_PREFIX}volumeUp`;
+            {
+                let btn: vscode.StatusBarItem;
+
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_VOLUME_UP, async () => {
+                    try {
+                        await ME.player.volumeUp();
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(volumeUp): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                }));
+
+                NEW_ITEMS.push(btn = vscode.window.createStatusBarItem());
+                btn.command = CMD_VOLUME_UP;
+                btn.text = '$(arrow-up)';
+                btn.tooltip = 'Volume UP';
+                btn.show();
+            }
+
+            // current track
+            let trackButton: vscode.StatusBarItem;
+            const CMD_SELECT_TRACK = `${COMMAND_PREFIX}selectTrack`;
+            {
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, async () => {
+                    try {
+                        await mplayer_playlists.playTrack(ME.player);
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                }));
+
                 NEW_ITEMS.push(trackButton = vscode.window.createStatusBarItem());
+                trackButton.command = CMD_SELECT_TRACK;
                 trackButton.text = '';
-                trackButton.hide();
+                trackButton.show();
             }
 
             let isUpdatingStatus = false;
@@ -197,36 +268,34 @@ export class StatusBarController implements vscode.Disposable {
                 isUpdatingStatus = true;
                 try {
                     let togglePlayText = '---';
-                    let trackText = '';
+                    let trackButtonText = '';
 
                     const STATUS = await ME.player.getStatus();
                     if (STATUS) {
+                        togglePlayText = '$(primitive-square)';
+
                         switch (STATUS.state) {
                             case mplayer_contracts.State.Playing:
                                 togglePlayText = '$(triangle-right)';
                                 break;
-
-                            case mplayer_contracts.State.Paused:
-                                togglePlayText = '$(primitive-square)';
-                                break;
                         }
 
                         if (STATUS.track) {
-                            trackButton.text = mplayer_helpers.toStringSafe(STATUS.track.name);
-
-                            trackButton.show();
-                        }
-                        else {
-                            trackButton.hide();
+                            trackButtonText = mplayer_helpers.toStringSafe(STATUS.track.name).trim();
                         }
                     }
 
-                    togglePlayButton.text = togglePlayText;
-                }
-                catch (e) {
-                    if (e) {
-
+                    const TRACK_BTN_TOOLTIP_TEXT = trackButtonText;
+                    if (trackButtonText.length > 32) {
+                        trackButtonText = trackButtonText.substr(0, 32) + '...';
                     }
+
+                    if (togglePlayButton.text !== togglePlayText) {
+                        togglePlayButton.text = togglePlayText;
+                    }
+
+                    trackButton.text = trackButtonText;
+                    trackButton.tooltip = TRACK_BTN_TOOLTIP_TEXT;
                 }
                 finally {
                     isUpdatingStatus = false;

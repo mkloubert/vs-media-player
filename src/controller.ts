@@ -26,7 +26,7 @@ import * as Moment from 'moment';
 import * as mplayer_contracts from './contracts';
 import * as mplayer_helpers from './helpers';
 import * as mplayer_players_controls from './players/controls';
-import * as mplayer_players_vlc from './players/vlc';
+import * as mplayer_players_vlcplayer from './players/vlcplayer';
 import * as vscode from 'vscode';
 
 
@@ -45,6 +45,8 @@ interface PlaylistQuickPickItem extends vscode.QuickPickItem {
 interface TrackQuickPickItem extends vscode.QuickPickItem {
     readonly track: mplayer_contracts.Track;
 }
+
+let nextPlayerConfigId = -1;
 
 /**
  * The controller class for that extension.
@@ -133,7 +135,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
 
                         switch (TYPE) {
                             case 'vlc':
-                                player = new mplayer_players_vlc.VLCPlayer(<mplayer_contracts.VLCPlayerConfig>PLAYER_CFG);
+                                player = new mplayer_players_vlcplayer.VLCPlayer(<mplayer_contracts.VLCPlayerConfig>PLAYER_CFG);
                                 break;
                         }
 
@@ -325,6 +327,14 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                 OLD_PLAYERS.forEach(op => {
                     mplayer_helpers.tryDispose(op);
                     mplayer_helpers.tryDispose(op.player);
+                });
+            }
+
+            if (CFG.players) {
+                CFG.players.filter(p => p).forEach(p => {
+                    const ID = ++nextPlayerConfigId;
+
+                    (<any>p)['__id'] = ID;
                 });
             }
 

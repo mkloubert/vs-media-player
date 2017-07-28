@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Events from 'events';
 import * as HTTP from 'http';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
@@ -36,7 +37,7 @@ type TrackPlayer = () => PromiseLike<boolean>;
 /**
  * A VLC player.
  */
-export class VLCPlayer implements mplayer_contracts.MediaPlayer {
+export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.MediaPlayer {
     /**
      * Stores the underlying configuration.
      */
@@ -52,6 +53,8 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
      * @param {mplayer_contracts.VLCPlayerConfig} cfg The underlying configuration.
      */
     constructor(cfg: mplayer_contracts.VLCPlayerConfig) {
+        super();
+
         if (!cfg) {
             cfg = <any>{};
         }
@@ -107,6 +110,33 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
      */
     public get config(): mplayer_contracts.VLCPlayerConfig {
         return this._CONFIG;
+    }
+
+    /**
+     * Creates basic HTTP requests options.
+     * 
+     * @return {HTTP.RequestOptions} The new, basic object.
+     */
+    protected createBasicRequestOptions(): HTTP.RequestOptions {
+        const BASE_URL = this.baseURL;
+
+        const HEADERS: any = {};
+
+        const AUTH = mplayer_helpers.toStringSafe(BASE_URL.auth);
+        if (AUTH.indexOf(':') > -1) {
+            const PARTS = AUTH.split(':');
+
+            HEADERS['Authorization'] = `Basic ${new Buffer(AUTH, 'ascii').toString('base64')}`;
+        }
+        
+        const OPTS: HTTP.RequestOptions = {
+            headers: HEADERS,
+            host: BASE_URL.hostname,
+            port: parseInt(BASE_URL.port),
+            method: 'GET',
+        };
+
+        return OPTS;
     }
 
     /**
@@ -328,6 +358,8 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
 
     /** @inheritdoc */
     public dispose() {
+        this.removeAllListeners();
+
         this._isConnected = null;
     }
 
@@ -486,6 +518,7 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
                                             else {
                                                 const STATUS: mplayer_contracts.PlayerStatus = {
                                                     player: ME,
+                                                    state: mplayer_contracts.State.Stopped,
                                                 };
 
                                                 let nextAction = () => {
@@ -514,35 +547,61 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
 
                                                         mplayer_helpers.asArray(xml['root']['currentplid']).forEach(x => {
                                                             WF.next((ctx) => {
-                                                                return ME.getPlaylists();
-                                                            });
-
-                                                            WF.next(async (ctx) => {
-                                                                const WF_TRACKS = Workflows.create();
-
-                                                                WF_TRACKS.next((ctx2) => {
-                                                                    ctx2.result = [];
-                                                                });
-
-                                                                ctx.previousValue.forEach((pl: mplayer_contracts.Playlist) => {
-                                                                    WF_TRACKS.next(async (ctx2) => {
-                                                                        const TRACKS: mplayer_contracts.Track[] = ctx2.result;
-
-                                                                        ctx2.result = TRACKS.concat( await pl.getTracks() );
+                                                                return new Promise<any>((res, rej) => {
+                                                                    ME.getPlaylists().then((playlists: mplayer_contracts.Playlist[]) => {
+                                                                        res(playlists);
+                                                                    }, (err) => {
+                                                                        rej(err);
                                                                     });
                                                                 });
+                                                            });
 
-                                                                const TRACKS: mplayer_contracts.Track[] = await WF_TRACKS.start();
-                                                                TRACKS.forEach(t => {
-                                                                    if (mplayer_helpers.normalizeString(t.id) === x) {
-                                                                        (<any>STATUS)['track'] = t;
-                                                                    }
+                                                            WF.next((ctx) => {
+                                                                return new Promise<any>((res, rej) => {
+                                                                    const WF_TRACKS = Workflows.create();
+
+                                                                    WF_TRACKS.next((ctx2) => {
+                                                                        ctx2.result = [];
+                                                                    });
+
+                                                                    ctx.previousValue.forEach((pl: mplayer_contracts.Playlist, i) => {
+                                                                        WF_TRACKS.next((ctx2) => {
+                                                                            const ALL_TRACKS: mplayer_contracts.Track[] = ctx2.result;
+
+                                                                            return new Promise<any>((res2, rej2) => {
+                                                                                pl.getTracks().then((tracks: mplayer_contracts.Track[]) => {
+                                                                                    ctx2.result = ALL_TRACKS.concat( tracks );
+                                                                                    
+                                                                                    res2();
+                                                                                }, (err) => {
+                                                                                    rej2(err);
+                                                                                });
+                                                                            });
+                                                                        });
+                                                                    });
+
+                                                                    WF_TRACKS.start().then((tracks: mplayer_contracts.Track[]) => {
+                                                                        try {
+                                                                            tracks.forEach(t => {
+                                                                                if (mplayer_helpers.normalizeString(t.id) === x) {
+                                                                                    (<any>STATUS)['track'] = t;
+                                                                                }
+                                                                            });
+
+                                                                            res();
+                                                                        }
+                                                                        catch (e) {
+                                                                            rej(e);
+                                                                        }
+                                                                    }).catch((err) => {
+                                                                        rej(err);
+                                                                    });
                                                                 });
                                                             });
                                                         });
 
                                                         nextAction = () => {
-                                                            WF.start(() => {
+                                                            WF.start().then(() => {
                                                                 COMPLETED(null, STATUS);
                                                             }).catch((err) => {
                                                                 COMPLETED(err);
@@ -646,6 +705,88 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
     }
 
     /** @inheritdoc */
+    public pause(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                try {
+                    const OPTS = ME.createBasicRequestOptions();
+                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('pl_pause');
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public play(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                try {
+                    const OPTS = ME.createBasicRequestOptions();
+                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('pl_play');
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
     public prev(): Promise<boolean> {
         const ME = this;
 
@@ -672,6 +813,90 @@ export class VLCPlayer implements mplayer_contracts.MediaPlayer {
                         port: parseInt(BASE_URL.port),
                         method: 'GET',
                     };
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public volumeDown(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                try {
+                    const OPTS = ME.createBasicRequestOptions();
+                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('volume') +
+                                                     '&val=' + encodeURIComponent( '-5' );
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public volumeUp(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                try {
+                    const OPTS = ME.createBasicRequestOptions();
+                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('volume') +
+                                                     '&val=' + encodeURIComponent( '+5' );
 
                     const REQUEST = HTTP.request(OPTS, (resp) => {
                         try {
