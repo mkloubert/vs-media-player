@@ -203,6 +203,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                         'streaming',
                                                         'playlist-read-collaborative',
                                                         'playlist-read-private' ].join(' '));
+                // url += "&show_dialog=" + encodeURIComponent('true');
 
                 let port: number;
                 let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
@@ -417,7 +418,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 const TRACKS: mplayer_contracts.Track[] = [];
 
                 try {
-                    const PLAYLIST_TRACKS = await client.getPlaylistTracks(user, playlist.id, { 'offset' : 0, 'fields' : 'items' });
+                    const PLAYLIST_TRACKS = await client.getPlaylistTracks(user, playlist.id.split(':')[4], { 'offset' : 0, 'fields' : 'items' });
                     if (PLAYLIST_TRACKS) {
                         const ITEMS = mplayer_helpers.asArray(PLAYLIST_TRACKS.body['items']).filter(i => i);
                         ITEMS.forEach(i => {
@@ -509,7 +510,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         return new Promise<mplayer_contracts.Playlist[]>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
-            //TODO: Not supported
             try {
                 try {
                     const CLIENT = await ME._API.getClient();
