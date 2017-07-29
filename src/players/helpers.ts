@@ -24,6 +24,7 @@
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_controls from '../players/controls';
+import * as mplayer_players_spotifyplayer from '../players/spotifyplayer';
 import * as mplayer_players_vlcplayer from '../players/vlcplayer';
 
 
@@ -52,6 +53,10 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig): Promise<Co
 
     let player: mplayer_contracts.MediaPlayer;
     switch (TYPE) {
+        case 'spotify':
+            player = new mplayer_players_spotifyplayer.SpotifyPlayer(ID, <mplayer_contracts.SpotifyPlayerConfig>cfg);
+            break;
+
         case 'vlc':
             player = new mplayer_players_vlcplayer.VLCPlayer(ID, <mplayer_contracts.VLCPlayerConfig>cfg);
             break;

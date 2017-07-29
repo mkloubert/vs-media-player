@@ -113,7 +113,6 @@
                                                 "description": "Show buttons to change volume or not.",
                                                 "default": false
                                             },
-
                                             "host": {
                                                 "type": "string",
                                                 "description": "The host of the (Lua) HTTP service.",
@@ -125,6 +124,101 @@
                                                 "default": 8080,
                                                 "minimum": 0,
                                                 "maximum": 65535
+                                            }
+                                        },
+                                        "required": [
+                                            "type"
+                                        ]
+                                    },
+
+                                    {
+                                        "description": "A Spotify player.",
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "spotify"
+                                                ]
+                                            },
+                                            "buttonPriorityOffset": {
+                                                "type": "integer",
+                                                "description": "A custom offset value for controling the priority of the buttons.",
+                                                "default": 10
+                                            },
+                                            "connectOnStartup": {
+                                                "type": "boolean",
+                                                "description": "Connect on startup or not.",
+                                                "default": true
+                                            },
+                                            "description": {
+                                                "type": "string",
+                                                "description": "A description for the player."
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "description": "A (display) name for the player."
+                                            },
+                                            "showPlayerName": {
+                                                "type": "boolean",
+                                                "description": "Show player name or not.",
+                                                "default": false
+                                            },
+                                            "showPrevButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for playing PREVIOUS track or not.",
+                                                "default": true
+                                            },
+                                            "showNextButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for playing NEXT track or not.",
+                                                "default": true
+                                            },
+                                            "showRight": {
+                                                "type": "boolean",
+                                                "description": "Show buttons on the RIGHT side or not.",
+                                                "default": false
+                                            },
+                                            "showToggleMuteButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle mute state or not.",
+                                                "default": true
+                                            },
+                                            "showTogglePlayButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle play state or not.",
+                                                "default": true
+                                            },
+                                            "showTrackSelectorButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for selecting a track or not.",
+                                                "default": true
+                                            },
+                                            "showVolumeButtons": {
+                                                "type": "boolean",
+                                                "description": "Show buttons to change volume or not.",
+                                                "default": false
+                                            },
+                                            "host": {
+                                                "type": "string",
+                                                "description": "The host of the (Lua) HTTP service.",
+                                                "default": "localhost"
+                                            },
+                                            "port": {
+                                                "type": "integer",
+                                                "description": "The TCP port of the (Lua) HTTP service.",
+                                                "default": 8080,
+                                                "minimum": 0,
+                                                "maximum": 65535
+                                            },
+
+                                            "clientID": {
+                                                "type": "string",
+                                                "description": "The client ID of an own registered Spotify app."
+                                            },
+                                            "clientSecret": {
+                                                "type": "string",
+                                                "description": "The client secret of an own registered Spotify app."
                                             }
                                         },
                                         "required": [
@@ -168,6 +262,8 @@
     "dependencies": {
         "moment": "^2.18.1",
         "node-workflows": "^1.3.3",
+        "spotify-web-api-node": "^2.4.0",
+        "spotilocal": "^0.1.0",
         "xml2js": "^0.4.17"
     }
 }

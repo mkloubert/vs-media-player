@@ -213,7 +213,7 @@ export interface PlayerConfig {
     /**
      * The type.
      */
-    readonly type?: "vlc";
+    readonly type?: "vlc" | "spotify";
 }
 
 /**
@@ -272,6 +272,22 @@ export interface Playlist {
      * Gets the underlying player.
      */
     readonly player: MediaPlayer;
+}
+
+/**
+ * A Spotify player config entry.
+ */
+export interface SpotifyPlayerConfig extends PlayerConfig {
+    /**
+     * The client ID of an own registered Spotify app.
+     */
+    readonly clientID?: string;
+    /**
+     * The client secret of an own registered Spotify app.
+     */
+    readonly clientSecret?: string;
+    /** @inheritdoc */
+    readonly type: "spotify";
 }
 
 /**
