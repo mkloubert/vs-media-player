@@ -62,6 +62,12 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly config?: PlayerConfig;
     /**
+     * Configures the player.
+     * 
+     * @type {PromiseLike<boolean>} The promise with the state that indicates if operation was successful or not.
+     */
+    readonly configure?: () => PromiseLike<boolean>;
+    /**
      * Connects to the player.
      * 
      * @memberof MediaPlayer

@@ -2,7 +2,7 @@
     "name": "vs-media-player",
     "displayName": "Media Player",
     "description": "Extension to control media players like Spotify or VLC directly from the editor.",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.13.0"
@@ -35,8 +35,18 @@
                 "category": "Media Player"
             },
             {
+                "command": "extension.mediaPlayer.configure",
+                "title": "Configure",
+                "category": "Media Player"
+            },
+            {
                 "command": "extension.mediaPlayer.selectItemOfPlaylist",
                 "title": "Select item of playlist",
+                "category": "Media Player"
+            },
+            {
+                "command": "extension.mediaPlayer.spotify.registerApp",
+                "title": "Register app for Spotify",
                 "category": "Media Player"
             }
         ],

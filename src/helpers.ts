@@ -51,6 +51,20 @@ export interface OpenOptions {
 }
 
 /**
+ * A progress context.
+ */
+export interface ProgressContext<TState> {
+    /**
+     * Gets or sets the message to display / report.
+     */
+    message: string;
+    /**
+     * Gets the state.
+     */
+    readonly state: TState;
+}
+
+/**
  * Describes a simple 'completed' action.
  * 
  * @param {any} err The occurred error.
@@ -466,4 +480,61 @@ export function tryDispose(obj: { dispose?: () => any }): boolean {
 
         return false;
     }
+}
+
+/**
+ * Executes a task by using a progress message.
+ * 
+ * @param {(ctx: ProgressContext<TState>) => TResult} task The task to execute.
+ * @param {vscode.ProgressOptions} options The options.
+ * @param {TState} [state] The optional state.
+ * 
+ * @returns {Promise<TResult>} The promise with the result.
+ */
+export function withProgress<TResult = void, TState = undefined>(task: (ctx: ProgressContext<TState>) => TResult,
+                                                                 options?: vscode.ProgressOptions,
+                                                                 state?: TState): Promise<TResult> {
+    if (!options) {
+        options = {
+            location: vscode.ProgressLocation.Window,
+        };
+    }
+    
+    if (!task) {
+        task = <any>(() => {});
+    }
+    
+    return new Promise<TResult>((resolve, reject) => {
+        const COMPLETED = createSimpleCompletedAction(resolve, reject);
+
+        vscode.window.withProgress(options, (prog) => {
+            const CONTEXT: ProgressContext<TState> = {
+                message: undefined,
+                state: state,
+            };
+
+            // CONTEXT.message
+            let currentMessage: string;
+            Object.defineProperty(CONTEXT, 'message', {
+                enumerable: true,
+
+                get: () => {
+                    return currentMessage;
+                },
+                set: (newValue) => {
+                    prog.report({
+                        message: currentMessage = toStringSafe(newValue),
+                    });
+                }
+            });
+
+            return Promise.resolve(
+                task(CONTEXT),
+            );
+        }).then((result) => {
+            COMPLETED(null, result);
+        }, (err) => {
+            COMPLETED(err);
+        });
+    });
 }

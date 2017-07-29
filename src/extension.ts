@@ -73,9 +73,21 @@ export function activate(context: vscode.ExtensionContext) {
         await controller.disconnect();
     });
 
+    // configure a player
+    const CMD_CONFIGURE = vscode.commands.registerCommand('extension.mediaPlayer.configure', async () => {
+        await controller.configure();
+    });
+
     // select item of playlist
     const CMD_SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', async () => {
         await controller.selectItemOfPlaylist();
+    });
+
+    // open browser to register an app for Spotify
+    const CMD_SPOTIFY_REGISTER_APP = vscode.commands.registerCommand('extension.mediaPlayer.spotify.registerApp', async () => {
+        await mplayer_helpers.open('https://developer.spotify.com/my-applications/#!/applications/create', {
+            wait: false,
+        });
     });
 
     // notfiy setting changes
@@ -85,7 +97,9 @@ export function activate(context: vscode.ExtensionContext) {
     // commands
     context.subscriptions
            .push(CMD_CONNECT, CMD_DISCONNECT,
-                 CMD_SELECT_ITEM_OF_PLAYLIST);
+                 CMD_CONFIGURE,
+                 CMD_SELECT_ITEM_OF_PLAYLIST,
+                 CMD_SPOTIFY_REGISTER_APP);
 
     controller.onActivated();
     context.subscriptions

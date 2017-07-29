@@ -259,6 +259,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
      * Stores if player has been initialized or not.
      */
     protected _isInitialized = false;
+    /**
+     * Stores the playlist cache.
+     */
+    protected _playlistCache: mplayer_contracts.Playlist[];
 
     /**
      * Initializes a new instance of that class.
@@ -469,6 +473,62 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /** @inheritdoc */
+    public configure(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
+
+                QUICK_PICKS.push({
+                    label: 'Delete cache of PLAYLISTS',
+                    description: '',
+                    action: () => {
+                        ME._playlistCache = null;
+                    }
+                });
+
+                let placeholder = 'Configure Spotify player';
+                {
+                    let name = mplayer_helpers.toStringSafe( ME.config.name ).trim();
+                    if ('' === name) {
+                        name = `Player ${ME.config.__id}`;
+                    }
+
+                    placeholder += ` '${name}'`;
+                }
+                placeholder += '...';
+
+                vscode.window.showQuickPick(QUICK_PICKS.sort((x, y) => {
+                    return mplayer_helpers.compareValuesBy(x, y,
+                                                           qp => mplayer_helpers.normalizeString(qp.label));
+                }), {
+                    placeHolder: placeholder,
+                }).then(async (item) => {
+                    try {
+                        if (item) {
+                            await Promise.resolve( item.action(item.state, item) );
+                        }
+                        else {
+                            COMPLETED(null, false);
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                }, (err) => {
+                    COMPLETED(err);
+                });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
     public connect() {
         const ME = this;
 
@@ -484,6 +544,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 const NEW_CLIENT = new Spotilocal();
                 NEW_CLIENT.init().then((client) => {
                     ME._client = client || NEW_CLIENT;
+                    ME._playlistCache = null;
 
                     COMPLETED(null, true);
                 }).catch((err) => {
@@ -548,54 +609,64 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     protected createTrackListProvider(client: any, user: string, playlist: mplayer_contracts.Playlist): TrackListProvider {
         const ME = this;
 
+        let trackListCache: mplayer_contracts.Track[];
+
         return () => {
             return new Promise<mplayer_contracts.Track[]>(async (resolve, reject) => {
-                const TRACKS: mplayer_contracts.Track[] = [];
+                const COMPLETED = ME.createCompletedAction(resolve, reject);
 
-                try {
-                    const PLAYLIST_TRACKS = await client.getPlaylistTracks(user, playlist.id.split(':')[4], { 'offset' : 0, 'fields' : 'items' });
-                    if (PLAYLIST_TRACKS) {
-                        const ITEMS = mplayer_helpers.asArray(PLAYLIST_TRACKS.body['items']).filter(i => i);
-                        ITEMS.forEach(i => {
-                            const TRACK_DATA = i['track'];
-                            if (TRACK_DATA) {
-                                let artist = '';
-                                let name = mplayer_helpers.toStringSafe(TRACK_DATA['name']).trim();
-
-                                const ARTISTS = mplayer_helpers.asArray(TRACK_DATA['artists']).filter(a => a);
-                                ARTISTS.forEach(a => {
-                                    let artistName = mplayer_helpers.toStringSafe(a['name']).trim();
-                                    if ('' !== artistName) {
-                                        artist = artistName;
-                                    }
-                                });
-
-                                const NEW_TRACK: mplayer_contracts.Track = {
-                                    id: mplayer_helpers.toStringSafe(TRACK_DATA['uri']),
-                                    name: `${artist}${!mplayer_helpers.isEmptyString(artist) ? ' - ' : ''}${name}`.trim(),
-                                    play: function() {
-                                        return new Promise<boolean>(async (res, rej) => {
-                                            try {
-                                                await ME.client.play( mplayer_helpers.toStringSafe(TRACK_DATA['uri']) );
-
-                                                res(true);
-                                            }
-                                            catch (e) {
-                                                rej(e);
-                                            }
-                                        });
-                                    },
-                                    playlist: playlist,
-                                };
-
-                                TRACKS.push(NEW_TRACK);
-                            }
-                        });
-                    }
+                if (trackListCache) {
+                    COMPLETED(null, trackListCache);
                 }
-                catch (e) { }
+                else {
+                    const TRACKS: mplayer_contracts.Track[] = [];
 
-                resolve(TRACKS);
+                    try {
+                        const PLAYLIST_TRACKS = await client.getPlaylistTracks(user, playlist.id.split(':')[4], { 'offset' : 0, 'fields' : 'items' });
+                        if (PLAYLIST_TRACKS) {
+                            const ITEMS = mplayer_helpers.asArray(PLAYLIST_TRACKS.body['items']).filter(i => i);
+                            ITEMS.forEach(i => {
+                                const TRACK_DATA = i['track'];
+                                if (TRACK_DATA) {
+                                    let artist = '';
+                                    let name = mplayer_helpers.toStringSafe(TRACK_DATA['name']).trim();
+
+                                    const ARTISTS = mplayer_helpers.asArray(TRACK_DATA['artists']).filter(a => a);
+                                    ARTISTS.forEach(a => {
+                                        let artistName = mplayer_helpers.toStringSafe(a['name']).trim();
+                                        if ('' !== artistName) {
+                                            artist = artistName;
+                                        }
+                                    });
+
+                                    const NEW_TRACK: mplayer_contracts.Track = {
+                                        id: mplayer_helpers.toStringSafe(TRACK_DATA['uri']),
+                                        name: `${artist}${!mplayer_helpers.isEmptyString(artist) ? ' - ' : ''}${name}`.trim(),
+                                        play: function() {
+                                            return new Promise<boolean>(async (res, rej) => {
+                                                try {
+                                                    await ME.client.play( mplayer_helpers.toStringSafe(TRACK_DATA['uri']) );
+
+                                                    res(true);
+                                                }
+                                                catch (e) {
+                                                    rej(e);
+                                                }
+                                            });
+                                        },
+                                        playlist: playlist,
+                                    };
+
+                                    TRACKS.push(NEW_TRACK);
+                                }
+                            });
+                        }
+                    }
+                    catch (e) { }
+
+                    COMPLETED(null,
+                              trackListCache = TRACKS);
+                }
             });
         };
     }
@@ -610,6 +681,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /** @inheritdoc */
     public dispose() {
         mplayer_helpers.tryDispose( this._authorizeWebAPICommand );
+        this._playlistCache = null;
 
         this.removeAllListeners();
     }
@@ -656,6 +728,13 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         return new Promise<mplayer_contracts.Playlist[]>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
+            const CACHED_PLAYLISTS = ME._playlistCache;
+            if (!mplayer_helpers.isNullOrUndefined(CACHED_PLAYLISTS)) {
+                COMPLETED(null,
+                          CACHED_PLAYLISTS.filter(p => p));
+                return;
+            }
+
             try {
                 try {
                     const CLIENT = await ME.api.getClient();
@@ -664,7 +743,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         if (USER) {
                             const USER_ID: string = mplayer_helpers.toStringSafe(USER.body['id']);
                             if (!mplayer_helpers.isEmptyString(USER_ID)) {
-                                const PLAYLISTS: mplayer_contracts.Playlist[] = [];
+                                let playlists: mplayer_contracts.Playlist[] = [];
 
                                 const PLAYLIST_DATA = await CLIENT.getUserPlaylists(USER_ID);
                                 if (PLAYLIST_DATA) {
@@ -679,14 +758,17 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
                                         (<any>NEW_PLAYLIST)['getTracks'] = ME.createTrackListProvider(CLIENT, USER_ID, NEW_PLAYLIST);
 
-                                        PLAYLISTS.push(NEW_PLAYLIST);
+                                        playlists.push(NEW_PLAYLIST);
                                     });
                                 }
 
-                                COMPLETED(null, PLAYLISTS.sort((x, y) => {
+                                // sort and cache
+                                ME._playlistCache = playlists = playlists.sort((x, y) => {
                                     return mplayer_helpers.compareValuesBy(x, y,
                                                                            pl => mplayer_helpers.normalizeString(pl.name));
-                                }));
+                                });
+
+                                COMPLETED(null, playlists);
                                 return;
                             }
                         }
@@ -730,7 +812,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         return new Promise<mplayer_contracts.PlayerStatus>((resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
-            //TODO: Implement
             try {
                 this.client.getStatus().then(async (spotifyStatus) => {
                     try {
@@ -846,12 +927,12 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         if (isAuthorized) {
                             (<any>BUTTON)['text'] = '$(log-out)';
                             (<any>BUTTON)['tooltip'] = 'Log out...';
-                            (<any>BUTTON)['color'] = '#ffff00';
+                            (<any>BUTTON)['color'] = '#00ff00';
                         }
                         else {
                             (<any>BUTTON)['text'] = '$(plug)';
                             (<any>BUTTON)['tooltip'] = 'Not authorized!';
-                            (<any>BUTTON)['color'] = '#ff0000';
+                            (<any>BUTTON)['color'] = '#ffff00';
                         }
 
                         COMPLETED(null, STATUS);

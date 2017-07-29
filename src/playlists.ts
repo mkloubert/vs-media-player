@@ -29,110 +29,138 @@ import * as vscode from 'vscode';
 /**
  * Selects a track from a playlist of a player for being played.
  * 
- * @param {mplayer_contracts.MediaPlayer} player 
+ * @param {mplayer_contracts.MediaPlayer} player The player.
+ * @param {mplayer_helpers.ProgressContext<undefined>} [progress] The optional progress context.
  * 
- * @returns {Promise<void>} The promise.
+ * @returns {Promise<boolean>} The promise that indicates if operation was successful or not..
  */
 export async function playTrack(player: mplayer_contracts.MediaPlayer,
-                                progress?: vscode.Progress<{ message?: string; }>): Promise<void> {
-    const UPDATE_PROGRES = (msg?: string) => {
-        if (progress) {
-            progress.report( {
-                message: mplayer_helpers.normalizeString(msg),
-            });
-        }
-    };
+                                progress?: mplayer_helpers.ProgressContext<undefined>): Promise<boolean> {
+    return new Promise<boolean>(async (resolve, reject) => {
+        const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
-    const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
+        try {
+            const UPDATE_PROGRESS = (msg?: string) => {
+                if (progress) {
+                    progress.message = msg;
+                }
+            };
 
-    const PLAYLISTS = ((await player.getPlaylists()) || []).filter(p => p);
-    
-    for (let i = 0; i < PLAYLISTS.length; i++) {
-        const PL = PLAYLISTS[i];
+            const PLAYLISTS = ((await player.getPlaylists()) || []).filter(p => p);
 
-        UPDATE_PROGRES(`Loading tracks ${i + 1} / ${PLAYLISTS.length} (${Math.floor(i / PLAYLISTS.length * 100.0)} %)`);
+            const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
+            
+            for (let i = 0; i < PLAYLISTS.length; i++) {
+                const PL = PLAYLISTS[i];
 
-        const TRACKS = ((await PL.getTracks()) || []).filter(t => t);
-        if (TRACKS.length < 1) {
-            continue;
-        }
+                UPDATE_PROGRESS(`Loading tracks ${i + 1} / ${PLAYLISTS.length} (${Math.floor(i / PLAYLISTS.length * 100.0)} %)`);
 
-        let label = mplayer_helpers.toStringSafe(PL.name).trim();
-        if ('' === label) {
-            let id = mplayer_helpers.toStringSafe(PL.id).trim();
-            if ('' === id) {
-                id = `#${i + 1}`;
-            }
+                const TRACKS = ((await PL.getTracks()) || []).filter(t => t);
+                if (TRACKS.length < 1) {
+                    continue;
+                }
 
-            label = `Playlist ${id}`;
-        }
-
-        const PL_ITEM: mplayer_contracts.ActionQuickPickItem = {
-            description: '',
-            action: async () => {
-                try {
-                    if (TRACKS.length > 0) {
-                        await TRACKS[0].play();
+                let label = mplayer_helpers.toStringSafe(PL.name).trim();
+                if ('' === label) {
+                    let id = mplayer_helpers.toStringSafe(PL.id).trim();
+                    if ('' === id) {
+                        id = `#${i + 1}`;
                     }
-                }
-                catch (e) {
-                    mplayer_helpers.log(`[ERROR] playlists.playTrack(5): ${mplayer_helpers.toStringSafe(e)}`);
-                }
-            },
-            label: '$(list-unordered) ' + label,
-            state: PL,
-        };
-        QUICK_PICKS.push(PL_ITEM);
 
-        for (let j = 0; j < TRACKS.length; j++) {
-            const T = TRACKS[j];
+                    label = `Playlist ${id}`;
+                }
 
-            let label = mplayer_helpers.toStringSafe(T.name).trim();
-            if ('' === label) {
-                label = `Playlist #${j + 1}`;
+                const PL_ITEM: mplayer_contracts.ActionQuickPickItem = {
+                    description: '',
+                    action: async () => {
+                        try {
+                            if (TRACKS.length > 0) {
+                                await TRACKS[0].play();
+                            }
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] playlists.playTrack(5): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                    },
+                    label: '$(list-unordered) ' + label,
+                    state: PL,
+                };
+                QUICK_PICKS.push(PL_ITEM);
+
+                for (let j = 0; j < TRACKS.length; j++) {
+                    const T = TRACKS[j];
+
+                    let label = mplayer_helpers.toStringSafe(T.name).trim();
+                    if ('' === label) {
+                        label = `Playlist #${j + 1}`;
+                    }
+
+                    const T_ITEM: mplayer_contracts.ActionQuickPickItem = {
+                        action: async (track: mplayer_contracts.Track) => {
+                            try {
+                                await mplayer_helpers.withProgress(async (ctx) => {
+                                    ctx.message = 'Playing track...';
+                                    await track.play();
+                                });
+                            }
+                            catch (e) {
+                                mplayer_helpers.log(`[ERROR] playlists.playTrack(4): ${mplayer_helpers.toStringSafe(e)}`);
+                            }
+                        },
+                        description: '',
+                        label: "    $(triangle-right) " + ` [${j + 1}] ${label}`,
+                        state: T,
+                    };
+                    QUICK_PICKS.push(T_ITEM);
+                }
             }
 
-            const T_ITEM: mplayer_contracts.ActionQuickPickItem = {
-                action: async (track: mplayer_contracts.Track) => {
+            if (QUICK_PICKS.length > 0) {
+                vscode.window.showQuickPick(QUICK_PICKS, {
+                    placeHolder: 'Select an item of a playlist...',
+                }).then(async (item) => {
                     try {
-                        await track.play();
+                        if (item) {
+                            if (item.action) {
+                                await mplayer_helpers.withProgress(async (ctx) => {
+                                    ctx.message = 'Playing 1st track of playlist...';
+
+                                    await Promise.resolve(item.action(item.state, item));
+                                });
+
+                                COMPLETED(null, true);
+                            }
+                            else {
+                                COMPLETED(null, undefined);
+                            }
+                        }
+                        else {
+                            COMPLETED(null, null);
+                        }
                     }
                     catch (e) {
-                        mplayer_helpers.log(`[ERROR] playlists.playTrack(4): ${mplayer_helpers.toStringSafe(e)}`);
+                        mplayer_helpers.log(`[ERROR] playlists.playTrack(3): ${mplayer_helpers.toStringSafe(e)}`);
+
+                        COMPLETED(e);
                     }
-                },
-                description: '',
-                label: "  $(triangle-right) " + `   [${j + 1}] ${label}`,
-                state: T,
-            };
-            QUICK_PICKS.push(T_ITEM);
+                }, (err) => {
+                    mplayer_helpers.log(`[ERROR] playlists.playTrack(2): ${mplayer_helpers.toStringSafe(err)}`);
+
+                    COMPLETED(err);
+                });
+            }
+            else {
+                vscode.window.showWarningMessage('[vs-media-player] No track found!').then(() => {
+                    COMPLETED(null, false);
+                }, (err) => {
+                    mplayer_helpers.log(`[ERROR] playlists.playTrack(1): ${mplayer_helpers.toStringSafe(err)}`);
+
+                    COMPLETED(null, false);
+                });
+            }
         }
-    }
-
-    if (QUICK_PICKS.length > 0) {
-        vscode.window.showQuickPick(QUICK_PICKS, {
-            placeHolder: 'Select an item of a playlist...',
-        }).then(async (item) => {
-            if (!item) {
-                return;
-            }
-
-            if (item.action) {
-                try {
-                    await Promise.resolve(item.action(item.state, item));
-                }
-                catch (e) {
-                    mplayer_helpers.log(`[ERROR] playlists.playTrack(3): ${mplayer_helpers.toStringSafe(e)}`);
-                }
-            }
-        }, (err) => {
-            mplayer_helpers.log(`[ERROR] playlists.playTrack(2): ${mplayer_helpers.toStringSafe(err)}`);
-        });
-    }
-    else {
-        vscode.window.showWarningMessage('[vs-media-player] No track found!').then(() => {
-        }, (err) => {
-            mplayer_helpers.log(`[ERROR] playlists.playTrack(1): ${mplayer_helpers.toStringSafe(err)}`);
-        });
-    }
+        catch (e) {
+            COMPLETED(e);
+        }
+    });
 }

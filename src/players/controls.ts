@@ -151,7 +151,13 @@ export class StatusBarController implements vscode.Disposable {
                 }
             };
 
-            const UPDATE_BUTTON_TEXT = (btn: vscode.StatusBarItem, text: string, tooltip?: string) => {
+            const UPDATE_BUTTON_TEXT = (btn: vscode.StatusBarItem, text: string, tooltip?: string,
+                                        color?: string) => {
+                color = mplayer_helpers.normalizeString(color);
+                if ('' === color) {
+                    color = '#ffffff';
+                }
+
                 text = mplayer_helpers.toStringSafe(text);
                 tooltip = mplayer_helpers.toStringSafe(tooltip);
 
@@ -161,6 +167,9 @@ export class StatusBarController implements vscode.Disposable {
                     }
                     if (btn.tooltip !== tooltip) {
                         btn.tooltip = tooltip;
+                    }
+                    if (btn.color !== color) {
+                        btn.color = color;
                     }
                 }
             };
@@ -305,18 +314,14 @@ export class StatusBarController implements vscode.Disposable {
             const CMD_SELECT_TRACK = `${COMMAND_PREFIX}selectTrack`;
             {
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, () => {
-                    return Promise.resolve(
-                        vscode.window.withProgress({
-                            location: vscode.ProgressLocation.Window,
-                        }, async (progress) => {
-                            try {
-                                await mplayer_playlists.playTrack(ME.player, progress);
-                            }
-                            catch (e) {
-                                mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
-                            }
-                        })
-                    );
+                    return mplayer_helpers.withProgress(async (ctx) => {
+                        try {
+                            await mplayer_playlists.playTrack(ME.player, ctx);
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(trackButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(6)));
@@ -337,32 +342,38 @@ export class StatusBarController implements vscode.Disposable {
                     }
 
                     isTogglinMute = true;
-                    try {
-                        const STATUS = await ME.player.getStatus();
-                        if (STATUS) {
-                            let newVolume: number;
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            const STATUS = await ME.player.getStatus();
+                            if (STATUS) {
+                                let newVolume: number;
 
-                            if (mplayer_helpers.toBooleanSafe(STATUS.isMute, true)) {
-                                newVolume = lastVolumn;
-                            }
-                            else {
-                                newVolume = 0.0;
-                                lastVolumn = STATUS.volume;
-                            }
+                                if (mplayer_helpers.toBooleanSafe(STATUS.isMute, true)) {
+                                    newVolume = lastVolumn;
 
-                            if (isNaN(newVolume)) {
-                                newVolume = 1.0;
-                            }
+                                    progress.message = 'Unmute player...';
+                                }
+                                else {
+                                    newVolume = 0.0;
+                                    lastVolumn = STATUS.volume;
 
-                            await ME.player.setVolume(newVolume);
+                                    progress.message = 'Mute player...';
+                                }
+
+                                if (isNaN(newVolume)) {
+                                    newVolume = 1.0;
+                                }
+
+                                await ME.player.setVolume(newVolume);
+                            }
                         }
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(toggleMute): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
-                    finally {
-                        isTogglinMute = false;
-                    }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(toggleMute): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            isTogglinMute = false;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(toggleMuteButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(7)));
@@ -388,6 +399,7 @@ export class StatusBarController implements vscode.Disposable {
 
                 isUpdatingStatus = true;
                 try {
+                    let toggleMuteColor: string;
                     let toggleMuteText = '';
                     let toggleMuteTooltipText = '';
                     let togglePlayText = '---';
@@ -417,6 +429,8 @@ export class StatusBarController implements vscode.Disposable {
                             if (mplayer_helpers.toBooleanSafe(STATUS.isMute)) {
                                 toggleMuteText = '$(mute)';
                                 toggleMuteTooltipText = "MUTE\n\n(click here to UNMUTE)";
+
+                                toggleMuteColor = '#808080';
                             }
                             else {
                                 toggleMuteTooltipText = 'click here to MUTE';
@@ -449,7 +463,8 @@ export class StatusBarController implements vscode.Disposable {
 
                     UPDATE_BUTTON_TEXT(togglePlayButton, togglePlayText, togglePlayTooltipText);
                     UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText);
-                    UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText);
+                    UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText,
+                                       toggleMuteColor);
 
                     // info button
                     try {
