@@ -52,8 +52,6 @@ interface TrackQuickPickItem extends vscode.QuickPickItem {
 }
 
 
-let nextPlayerConfigId = -1;
-
 /**
  * The controller class for that extension.
  */
@@ -353,6 +351,8 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             
             if (CFG.players) {
                 // update player config entries
+
+                let nextPlayerConfigId = -1;
 
                 CFG.players.filter(p => p).forEach(p => {
                     const ID = ++nextPlayerConfigId;

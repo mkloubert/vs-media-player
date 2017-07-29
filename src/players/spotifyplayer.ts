@@ -281,6 +281,13 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /**
+     * Gets the Web API handler.
+     */
+    protected get api(): WebApi {
+        return this._API;
+    }
+
+    /**
      * Authorizes for Spotify.
      * 
      * @returns {Promise<any>} The promise.
@@ -654,7 +661,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
             try {
                 try {
-                    const CLIENT = await ME._API.getClient();
+                    const CLIENT = await ME.api.getClient();
                     if (CLIENT) {
                         const USER = await CLIENT.getMe();
                         if (USER) {
@@ -828,7 +835,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
                         let isAuthorized = false;
                         try {
-                            const CLIENT = await ME._API.getClient();
+                            const CLIENT = await ME.api.getClient();
                             if (CLIENT) {
                                 const USER = await CLIENT.getMe();
                                 if (USER) {
@@ -878,7 +885,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
             const CMD_NAME = 'extension.mediaPlayer.spotify.toggleAuthorize' + CMD_ID_SUFFIX;
             ME._authorizeWebAPICommand = vscode.commands.registerCommand(CMD_NAME, async () => {
-                const CLIENT = await ME._API.getClient();
+                const CLIENT = await ME.api.getClient();
                 if (CLIENT) {
                     await ME.unauthorizeFromWebAPI();
                 }
@@ -937,7 +944,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             };
 
             try {
-                const CLIENT = await ME._API.getClient();
+                const CLIENT = await ME.api.getClient();
                 if (CLIENT) {
                     const CREDETIALS = CLIENT['_credentials'];
                     if (CREDETIALS) {
@@ -1067,7 +1074,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             };
 
             try {
-                const CLIENT = await ME._API.getClient();
+                const CLIENT = await ME.api.getClient();
                 if (CLIENT) {
                     const CREDETIALS = CLIENT['_credentials'];
                     if (CREDETIALS) {
@@ -1149,8 +1156,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         newValue = Math.max(0.0, newValue);
         newValue = Math.min(1.0, newValue);
 
-        //TODO: Not supported
-
         return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
             const FALLBACK = () => {
@@ -1163,7 +1168,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             };
 
             try {
-                const CLIENT = await ME._API.getClient();
+                const CLIENT = await ME.api.getClient();
                 if (CLIENT) {
                     const CREDETIALS = CLIENT['_credentials'];
                     if (CREDETIALS) {
@@ -1245,7 +1250,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
             try {
-                const SETTINGS_KEY = ME._API.getSettingsKey();
+                const SETTINGS_KEY = ME.api.getSettingsKey();
                 if (!mplayer_helpers.isEmptyString(SETTINGS_KEY)) {
                     const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY) ||
                                  {};
