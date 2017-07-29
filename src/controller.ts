@@ -205,7 +205,6 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                                                                 'streaming',
                                                                 'playlist-read-collaborative',
                                                                 'playlist-read-private' ].join(' '));
-                        url += '&show_dialog=true';
 
                         let port: number;
                         let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
