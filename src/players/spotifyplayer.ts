@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Crypto from 'crypto';
 import * as Events from 'events';
 import * as HTTP from 'http';
 import * as HTTPs from 'https';
@@ -33,17 +34,29 @@ import * as URL from 'url';
 import * as vscode from 'vscode';
 
 
+interface WebAPISettings {
+    accessToken?: string;
+    code?: string;
+    expiresIn?: string;
+}
+
+interface WebAPISettingsRepository {
+    [name: string]: WebAPISettings;
+}
+
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
 
 let nextCommandId = -1;
+const REPO_KEY = 'vscMediaPlayerSpotifyWebAPI';
 
 class WebApi {
-    protected _client: any;
     protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
-    protected _expiresIn: Moment.Moment;
+    protected readonly _CONTEXT: vscode.ExtensionContext;
     
-    constructor(cfg: mplayer_contracts.SpotifyPlayerConfig) {
+    constructor(cfg: mplayer_contracts.SpotifyPlayerConfig,
+                context: vscode.ExtensionContext) {
         this._CONFIG = cfg;
+        this._CONTEXT = context;
     }
 
     public get code(): string {
@@ -54,51 +67,159 @@ class WebApi {
         return this._CONFIG;
     }
 
+    public get context(): vscode.ExtensionContext {
+        return this._CONTEXT;
+    }
+
     public async getClient(): Promise<any> {
+        const ME = this;
+
+        let client: any = null;
+        
+        const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY);
+
+        let settings: WebAPISettings;
+        const SETTINGS_KEY = ME.getSettingsKey();
+        if (!mplayer_helpers.isEmptyString(SETTINGS_KEY)) {
+            settings = REPO[SETTINGS_KEY];
+        }
+
+        const SAVE_SETTINGS = (c: any = null,
+                               code: string = null, accessToken: string = null, expiresIn: Moment.Moment = null) => {
+            let clientToReturn: any = null;
+
+            if (!mplayer_helpers.isEmptyString(SETTINGS_KEY)) {
+                if (mplayer_helpers.isEmptyString(accessToken) || mplayer_helpers.isEmptyString(code) || !expiresIn) {
+                    // no enough data
+                    delete REPO[SETTINGS_KEY];
+                }
+                else {
+                    clientToReturn = c;
+
+                    REPO[SETTINGS_KEY] = {
+                        accessToken: accessToken,
+                        code: code,
+                        expiresIn: expiresIn.format('YYYY-MM-DD HH:mm:ss'),
+                    };
+                }
+            }
+
+            client = clientToReturn;
+
+            ME.context.globalState.update(REPO_KEY, REPO).then(() => {
+            }, (err) => {
+                console.log(`[ERROR] SpotifyPlayer.WebApi.getClient(4): ${mplayer_helpers.toStringSafe(err)}`);
+            });
+        };
+
         try {
-            const CODE = this.code;
-            if (!mplayer_helpers.isEmptyString(CODE)) {
-                let createNewClient = true;
+            let code: string;
 
-                if (this._client) {
-                    let EXPIRES_IN = this._expiresIn;
-                    if (EXPIRES_IN) {
-                        const NOW = Moment.utc();
+            if (settings) {
+                code = settings.code;
+            }
 
-                        createNewClient = EXPIRES_IN.isSameOrBefore(NOW);
+            if (mplayer_helpers.isEmptyString(code)) {
+                code = ME.config.__code;
+            }
+
+            if (!mplayer_helpers.isEmptyString(code)) {
+                let accessTokenToUse: string;
+                let accessTokenExpiresIn: Moment.Moment;
+
+                if (settings) {
+                    if (code === settings.code) {
+                        if (!mplayer_helpers.isEmptyString(settings.accessToken)) {
+                            if (!mplayer_helpers.isEmptyString(settings.expiresIn)) {
+                                const EXPIRES_IN = Moment.utc( settings.expiresIn );
+                                if (EXPIRES_IN.isValid()) {
+                                    const NOW = Moment.utc();
+
+                                    if (EXPIRES_IN.isAfter(NOW)) {
+                                        accessTokenToUse = settings.accessToken;
+                                        accessTokenExpiresIn = Moment.utc(settings.expiresIn);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                if (createNewClient) {
-                    const NEW_CLIENT = new SpotifyWebApi({
-                        clientId : mplayer_helpers.toStringSafe(this.config.clientID),
-                        clientSecret : mplayer_helpers.toStringSafe(this.config.clientSecret),
-                        redirectUri : mplayer_helpers.toStringSafe(this.config.redirectURL),
-                    });
+                const NEW_CLIENT = new SpotifyWebApi({
+                    clientId : mplayer_helpers.toStringSafe(this.config.clientID),
+                    clientSecret : mplayer_helpers.toStringSafe(this.config.clientSecret),
+                    redirectUri : mplayer_helpers.toStringSafe(this.config.redirectURL),
+                });
 
-                    const DATA = await NEW_CLIENT.authorizationCodeGrant( CODE );
+                let doSaveSettings = false;
 
-                    NEW_CLIENT.setAccessToken(DATA.body['access_token']);
+                if (mplayer_helpers.isEmptyString(accessTokenToUse)) {
+                    const DATA = await NEW_CLIENT.authorizationCodeGrant( code );
 
-                    this._expiresIn = Moment.utc()
-                                            .add( parseInt(mplayer_helpers.toStringSafe(DATA.body['expires_in']).trim()),
-                                                  'seconds' );
-                    this._client = NEW_CLIENT;
+                    accessTokenToUse = mplayer_helpers.toStringSafe( DATA.body['access_token'] );
+                    accessTokenExpiresIn = Moment.utc()
+                                                 .add( parseInt(mplayer_helpers.toStringSafe(DATA.body['expires_in']).trim()),
+                                                       'seconds' );
+
+                    doSaveSettings = true;
+                }
+
+                if (!mplayer_helpers.isNullOrUndefined( accessTokenToUse )) {
+                    NEW_CLIENT.setAccessToken( accessTokenToUse );
+                }
+
+                if (doSaveSettings) {
+                    SAVE_SETTINGS(NEW_CLIENT,
+                                  code, accessTokenToUse, accessTokenExpiresIn);
+                }
+                else {
+                    client = NEW_CLIENT;
                 }
             }
             else {
-                this._client = null;
-                this._expiresIn = null;
+                SAVE_SETTINGS();  // no code
             }
         }
         catch (e) {
-            this._client = null;
-            this._expiresIn = null;
+            // error => no client
+            SAVE_SETTINGS();
 
-            console.log(`[ERROR] SpotifyPlayer.WebApi.getClient(): ${mplayer_helpers.toStringSafe(e)}`);
+            console.log(`[ERROR] SpotifyPlayer.WebApi.getClient(1): ${mplayer_helpers.toStringSafe(e)}`);
         }
         
-        return this._client;
+        return client;
+    }
+
+    public getSettingsKey(): string {
+        const ME = this;
+
+        try {
+            const CLIENT_ID = mplayer_helpers.toStringSafe(ME.config.clientID);
+            if (!mplayer_helpers.isEmptyString(CLIENT_ID)) {
+                const CLIENT_SECRET  = mplayer_helpers.toStringSafe(ME.config.clientSecret);
+                if (!mplayer_helpers.isEmptyString(CLIENT_SECRET)) {
+                    const REDIRECT_URL = mplayer_helpers.toStringSafe(ME.config.redirectURL);
+                    if (!mplayer_helpers.isEmptyString(REDIRECT_URL)) {
+                        const KEY = `vsc-mpl\n` +
+                                    `23091979_MK\n` + 
+                                    `ID: ${ME.config.__id}\n` + 
+                                    `CLIENT_ID: ${CLIENT_ID}\n` + 
+                                    `CLIENT_SECRET: ${CLIENT_SECRET}\n` + 
+                                    `REDIRECT_URL: ${REDIRECT_URL}\n` + 
+                                    `05091979_TM`;
+
+                        return Crypto.createHash('sha256')
+                                     .update( new Buffer(KEY, 'utf8') )
+                                     .digest('hex');
+                    }
+                }
+            }
+        }
+        catch (e) {
+            console.log(`[ERROR] SpotifyPlayer.WebApi.getSettingKey(): ${mplayer_helpers.toStringSafe(e)}`);
+        }
+
+        return null;
     }
 }
 
@@ -156,7 +277,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         this._ID = id;
         this._CONFIG = cfg;
         this._CONTEXT = context;
-        this._API = new WebApi(cfg);
+        this._API = new WebApi(cfg, context);
     }
 
     /**
@@ -369,6 +490,13 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /**
+     * Gets the underlying extension context.
+     */
+    public get context(): vscode.ExtensionContext {
+        return this._CONTEXT;
+    }
+
+    /**
      * Creates a simple 'completed' callback for a promise.
      * 
      * @param {Function} resolve The 'succeeded' callback.
@@ -424,9 +552,20 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         ITEMS.forEach(i => {
                             const TRACK_DATA = i['track'];
                             if (TRACK_DATA) {
+                                let artist = '';
+                                let name = mplayer_helpers.toStringSafe(TRACK_DATA['name']).trim();
+
+                                const ARTISTS = mplayer_helpers.asArray(TRACK_DATA['artists']).filter(a => a);
+                                ARTISTS.forEach(a => {
+                                    let artistName = mplayer_helpers.toStringSafe(a['name']).trim();
+                                    if ('' !== artistName) {
+                                        artist = artistName;
+                                    }
+                                });
+
                                 const NEW_TRACK: mplayer_contracts.Track = {
                                     id: mplayer_helpers.toStringSafe(TRACK_DATA['uri']),
-                                    name: mplayer_helpers.toStringSafe(TRACK_DATA['name']),
+                                    name: `${artist}${!mplayer_helpers.isEmptyString(artist) ? ' - ' : ''}${name}`.trim(),
                                     play: function() {
                                         return new Promise<boolean>(async (res, rej) => {
                                             try {
@@ -449,7 +588,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 }
                 catch (e) { }
 
-                resolve(TRACKS);
+                resolve(TRACKS.sort((x, y) => {
+                    return mplayer_helpers.compareValuesBy(x, y,
+                                                           tr => mplayer_helpers.normalizeString(tr.name));
+                }));
             });
         };
     }
@@ -537,7 +679,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     });
                                 }
 
-                                COMPLETED(null, PLAYLISTS);
+                                COMPLETED(null, PLAYLISTS.sort((x, y) => {
+                                    return mplayer_helpers.compareValuesBy(x, y,
+                                                                           pl => mplayer_helpers.normalizeString(pl.name));
+                                }));
                                 return;
                             }
                         }
@@ -598,10 +743,21 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         if (spotifyStatus.track) {
                             if (!track) {
                                 // use fallback
+
+                                let name = '';
+                                if (spotifyStatus.track.track_resource) {
+                                    name = mplayer_helpers.toStringSafe( spotifyStatus.track.track_resource.name ).trim();
+                                }
+                                if (spotifyStatus.track.artist_resource) {
+                                    let artist = mplayer_helpers.toStringSafe( spotifyStatus.track.artist_resource.name ).trim();
+                                    if ('' !== artist) {
+                                        name = `${artist}${'' !== name ? ' - ' : ''}${name}`.trim();
+                                    }
+                                }
                             
                                 track = {
                                     id: spotifyStatus.track.track_resource.uri,
-                                    name: spotifyStatus.track.track_resource.name,
+                                    name: name,
                                     play: () => {
                                         return Promise.resolve(false);
                                     },
@@ -682,11 +838,16 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         }
                         catch (e) { }
 
-                        if (!isAuthorized) {
-                            (<any>BUTTON)['command'] = ME._authorizeWebAPICommandName;
+                        (<any>BUTTON)['command'] = ME._authorizeWebAPICommandName;
+                        if (isAuthorized) {
+                            (<any>BUTTON)['text'] = '$(log-out)';
+                            (<any>BUTTON)['tooltip'] = 'Log out...';
+                            (<any>BUTTON)['color'] = '#ffff00';
+                        }
+                        else {
                             (<any>BUTTON)['text'] = '$(plug)';
                             (<any>BUTTON)['tooltip'] = 'Not authorized!';
-                            (<any>BUTTON)['color'] = '#ffff00';
+                            (<any>BUTTON)['color'] = '#ff0000';
                         }
 
                         COMPLETED(null, STATUS);
@@ -715,9 +876,15 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             const ME = this;
             const CMD_ID_SUFFIX = ++nextCommandId;
 
-            const CMD_NAME = 'extension.mediaPlayer.spotify.authorize' + CMD_ID_SUFFIX;
+            const CMD_NAME = 'extension.mediaPlayer.spotify.toggleAuthorize' + CMD_ID_SUFFIX;
             ME._authorizeWebAPICommand = vscode.commands.registerCommand(CMD_NAME, async () => {
-                await ME.authorizeWithWebAPI();
+                const CLIENT = await ME._API.getClient();
+                if (CLIENT) {
+                    await ME.unauthorizeFromWebAPI();
+                }
+                else {
+                    await ME.authorizeWithWebAPI();
+                }
             });
             ME._authorizeWebAPICommandName = CMD_NAME;
 
@@ -842,6 +1009,36 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             //TODO: Not supported
             try {
                 COMPLETED(null, false);
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Unauthorizes from Spotify.
+     * 
+     * @returns {Promise<any>} The promise.
+     */
+    protected unauthorizeFromWebAPI(): Promise<any> {
+        const ME = this;
+
+        return new Promise<any>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const SETTINGS_KEY = ME._API.getSettingsKey();
+                if (!mplayer_helpers.isEmptyString(SETTINGS_KEY)) {
+                    const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY) ||
+                                 {};
+
+                    delete REPO[SETTINGS_KEY];
+
+                    await Promise.resolve( ME.context.globalState.update(REPO_KEY, REPO) );
+                }
+
+                COMPLETED(null);
             }
             catch (e) {
                 COMPLETED(e);

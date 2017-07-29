@@ -347,12 +347,10 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             // dispose old players
             WF.next(() => {
                 ME.disposeOldPlayers();
-            });
 
-            WF.next(() => {
                 ME._connectedPlayers = [];
             });
-
+            
             if (CFG.players) {
                 // update player config entries
 

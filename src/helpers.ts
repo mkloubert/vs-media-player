@@ -75,6 +75,49 @@ export function asArray<T = any>(val: T | T[]): T[] {
 }
 
 /**
+ * Compares two values for a sort operation.
+ * 
+ * @param {T} x The left value.
+ * @param {T} y The right value.
+ * 
+ * @return {number} The "sort value".
+ */
+export function compareValues<T>(x: T, y: T): number {
+    if (x === y) {
+        return 0;
+    }
+
+    if (x > y) {
+        return 1;
+    }
+
+    if (x < y) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * Compares values by using a selector.
+ * 
+ * @param {T} x The left value. 
+ * @param {T} y The right value.
+ * @param {Function} selector The selector.
+ * 
+ * @return {number} The "sort value".
+ */
+export function compareValuesBy<T, U>(x: T, y: T,
+                                      selector: (t: T) => U): number {
+    if (!selector) {
+        selector = (t) => <any>t;
+    }
+
+    return compareValues<U>(selector(x),
+                            selector(y));
+}
+
+/**
  * Creates a simple 'completed' callback for a promise.
  * 
  * @param {Function} resolve The 'succeeded' callback.
