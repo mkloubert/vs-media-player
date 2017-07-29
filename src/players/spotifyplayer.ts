@@ -1003,16 +1003,97 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     public setVolume(newValue: number): Promise<boolean> {
         const ME = this;
 
+        newValue = parseFloat( mplayer_helpers.toStringSafe(newValue).trim() );
+        if (isNaN(newValue)) {
+            newValue = 1.0;
+        }
+
+        newValue = Math.max(0.0, newValue);
+        newValue = Math.min(1.0, newValue);
+
+        //TODO: Not supported
+
         return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, false);
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
 
-            //TODO: Not supported
             try {
-                COMPLETED(null, false);
+                const CLIENT = await ME._API.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            // https://api.spotify.com/v1/me/player/volume
+
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player/volume?volume_percent=' + encodeURIComponent( '' + Math.floor( newValue * 100.0 ) ),
+                                        method: 'PUT',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '204':
+                                                    COMPLETED(null, true);  // OK
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+
+                                                        COMPLETED(null, false);
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            FALLBACK();
+                                        }
+                                    });
+
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            }
+
+                            doRequest();
+                            return;
+                        }
+                    }  
+                }
             }
-            catch (e) {
-                COMPLETED(e);
-            }
+            catch (e) {}
+
+            FALLBACK();
         });
     }
 
@@ -1050,12 +1131,23 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     public volumeDown(): Promise<boolean> {
         const ME = this;
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
-            //TODO: Not supported
             try {
-                COMPLETED(null, false);
+                let result = false;
+
+                const STATUS = await ME.getStatus();
+                if (STATUS) {
+                    let newVolum = STATUS.volume;
+                    if (!isNaN(newVolum)) {
+                        newVolum = Math.max(0.0, newVolum - 0.05);
+
+                        result = await ME.setVolume(newVolum);
+                    }
+                }
+
+                COMPLETED(null, result);
             }
             catch (e) {
                 COMPLETED(e);
@@ -1067,12 +1159,23 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     public volumeUp(): Promise<boolean> {
         const ME = this;
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
-            //TODO: Not supported
             try {
-                COMPLETED(null, false);
+                let result = false;
+
+                const STATUS = await ME.getStatus();
+                if (STATUS) {
+                    let newVolum = STATUS.volume;
+                    if (!isNaN(newVolum)) {
+                        newVolum = Math.min(1.0, newVolum + 0.05);
+
+                        result = await ME.setVolume(newVolum);
+                    }
+                }
+
+                COMPLETED(null, result);
             }
             catch (e) {
                 COMPLETED(e);
