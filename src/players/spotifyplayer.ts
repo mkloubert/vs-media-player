@@ -32,10 +32,79 @@ import { Spotilocal } from 'spotilocal';
 import * as URL from 'url';
 
 
+class WebApi {
+    protected _client: any;
+    protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
+    protected _expiresIn: Moment.Moment;
+    
+    constructor(cfg: mplayer_contracts.SpotifyPlayerConfig) {
+        this._CONFIG = cfg;
+    }
+
+    public get code(): string {
+        return this._CONFIG.__code;
+    }
+
+    public get config(): mplayer_contracts.SpotifyPlayerConfig {
+        return this._CONFIG;
+    }
+
+    public async getClient(): Promise<any> {
+        try {
+            const CODE = this.code;
+            if (!mplayer_helpers.isEmptyString(CODE)) {
+                let createNewClient = true;
+
+                if (this._client) {
+                    let EXPIRES_IN = this._expiresIn;
+                    if (EXPIRES_IN) {
+                        const NOW = Moment.utc();
+
+                        createNewClient = EXPIRES_IN.isSameOrBefore(NOW);
+                    }
+                }
+
+                if (createNewClient) {
+                    const NEW_CLIENT = new SpotifyWebApi({
+                        clientId : mplayer_helpers.toStringSafe(this.config.clientID),
+                        clientSecret : mplayer_helpers.toStringSafe(this.config.clientSecret),
+                        redirectUri : mplayer_helpers.toStringSafe(this.config.redirectURL),
+                    });
+
+                    const DATA = await NEW_CLIENT.authorizationCodeGrant( CODE );
+
+                    NEW_CLIENT.setAccessToken(DATA.body['access_token']);
+
+                    this._expiresIn = Moment.utc()
+                                            .add( parseInt(mplayer_helpers.toStringSafe(DATA.body['expires_in']).trim()),
+                                                  'seconds' );
+                    this._client = NEW_CLIENT;
+                }
+            }
+            else {
+                this._client = null;
+                this._expiresIn = null;
+            }
+        }
+        catch (e) {
+            this._client = null;
+            this._expiresIn = null;
+
+            console.log(`[ERROR] SpotifyPlayer.getWebApiClient(): ${mplayer_helpers.toStringSafe(e)}`);
+        }
+        
+        return this._client;
+    }
+}
+
 /**
  * A Spotify player.
  */
 export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contracts.MediaPlayer {
+    /**
+     * Stores the current API.
+     */
+    protected _API: WebApi;
     /**
      * Stores the current client.
      */
@@ -63,6 +132,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
         this._ID = id;
         this._CONFIG = cfg;
+        this._API = new WebApi(cfg);
     }
 
     /**
@@ -228,7 +298,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
             //TODO: Implement
             try {
-                this.client.getStatus().then((spotifyStatus) => {
+                this.client.getStatus().then(async (spotifyStatus) => {
                     try {
                         const STATUS: mplayer_contracts.PlayerStatus = {
                             isConnected: undefined,

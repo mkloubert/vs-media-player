@@ -21,10 +21,34 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as ChildProcess from 'child_process';
 import * as HTTP from 'http';
 import * as Moment from 'moment';
+import * as Path from 'path';
 import * as vscode from 'vscode';
 
+/**
+ * Options for open function.
+ */
+export interface OpenOptions {
+    /**
+     * The app (or options) to open.
+     */
+    app?: string | string[];
+    /**
+     * The custom working directory.
+     */
+    cwd?: string;
+    /**
+     * An optional list of environment variables
+     * to submit to the new process.
+     */
+    env?: any;
+    /**
+     * Wait until exit or not.
+     */
+    wait?: boolean;
+}
 
 /**
  * Describes a simple 'completed' action.
@@ -185,6 +209,166 @@ export function normalizeString(val: any, normalizer?: (str: string) => string):
     }
 
     return normalizer(toStringSafe(val));
+}
+
+/**
+ * Opens a target.
+ * 
+ * @param {string} target The target to open.
+ * @param {OpenOptions} [opts] The custom options to set.
+ * 
+ * @param {Promise<ChildProcess.ChildProcess>} The promise.
+ */
+export function open(target: string, opts?: OpenOptions): Promise<ChildProcess.ChildProcess> {
+    let me = this;
+
+    if (!opts) {
+        opts = {};
+    }
+
+    opts.wait = toBooleanSafe(opts.wait, true);
+    
+    return new Promise((resolve, reject) => {
+        let completed = (err?: any, cp?: ChildProcess.ChildProcess) => {
+            if (err) {
+                reject(err);
+            }
+            else {
+                resolve(cp);
+            }
+        };
+        
+        try {
+            if (typeof target !== 'string') {
+                throw new Error('Expected a `target`');
+            }
+
+            let cmd: string;
+            let appArgs: string[] = [];
+            let args: string[] = [];
+            let cpOpts: ChildProcess.SpawnOptions = {
+                cwd: opts.cwd || vscode.workspace.rootPath,
+                env: opts.env,
+            };
+
+            if (Array.isArray(opts.app)) {
+                appArgs = opts.app.slice(1);
+                opts.app = opts.app[0];
+            }
+
+            if (process.platform === 'darwin') {
+                // Apple
+
+                cmd = 'open';
+
+                if (opts.wait) {
+                    args.push('-W');
+                }
+
+                if (opts.app) {
+                    args.push('-a', opts.app);
+                }
+            }
+            else if (process.platform === 'win32') {
+                // Microsoft
+
+                cmd = 'cmd';
+                args.push('/c', 'start', '""');
+                target = target.replace(/&/g, '^&');
+
+                if (opts.wait) {
+                    args.push('/wait');
+                }
+
+                if (opts.app) {
+                    args.push(opts.app);
+                }
+
+                if (appArgs.length > 0) {
+                    args = args.concat(appArgs);
+                }
+            }
+            else {
+                // Unix / Linux
+
+                if (opts.app) {
+                    cmd = opts.app;
+                } else {
+                    cmd = Path.join(__dirname, 'xdg-open');
+                }
+
+                if (appArgs.length > 0) {
+                    args = args.concat(appArgs);
+                }
+
+                if (!opts.wait) {
+                    // xdg-open will block the process unless
+                    // stdio is ignored even if it's unref'd
+                    cpOpts.stdio = 'ignore';
+                }
+            }
+
+            args.push(target);
+
+            if (process.platform === 'darwin' && appArgs.length > 0) {
+                args.push('--args');
+                args = args.concat(appArgs);
+            }
+
+            let cp = ChildProcess.spawn(cmd, args, cpOpts);
+
+            if (opts.wait) {
+                cp.once('error', (err) => {
+                    completed(err);
+                });
+
+                cp.once('close', function (code) {
+                    if (code > 0) {
+                        completed(new Error('Exited with code ' + code));
+                        return;
+                    }
+
+                    completed(null, cp);
+                });
+            }
+            else {
+                cp.unref();
+
+                completed(null, cp);
+            }
+        }
+        catch (e) {
+            completed(e);
+        }
+    });
+}
+
+/**
+ * Extracts the query parameters of an URI to an object.
+ * 
+ * @param {string} query The query string.
+ * 
+ * @return {Object} The parameters of the URI as object.
+ */
+export function queryParamsToObject(query: string): { [name: string]: string } {
+    query = toStringSafe(query);
+
+    let params: any;
+
+    if (!isEmptyString(query)) {
+        // s. https://css-tricks.com/snippets/jquery/get-query-params-object/
+        params = query.replace(/(^\?)/,'')
+                      .split("&")
+                      .map(function(n) { return n = n.split("="), this[normalizeString(n[0])] =
+                                                                       toStringSafe(decodeURIComponent(n[1])), this}
+                      .bind({}))[0];
+    }
+
+    if (isNullOrUndefined(params)) {
+        params = {};
+    }
+
+    return params;
 }
 
 /**

@@ -279,6 +279,13 @@ export interface Playlist {
  */
 export interface SpotifyPlayerConfig extends PlayerConfig {
     /**
+     * [INTERNAL USE]
+     * 
+     * Last OAuth code.
+     */
+    __code?: string;
+
+    /**
      * The client ID of an own registered Spotify app.
      */
     readonly clientID?: string;
@@ -286,6 +293,10 @@ export interface SpotifyPlayerConfig extends PlayerConfig {
      * The client secret of an own registered Spotify app.
      */
     readonly clientSecret?: string;
+    /**
+     * The redirect URL for the authorization..
+     */
+    readonly redirectURL?: string;
     /** @inheritdoc */
     readonly type: "spotify";
 }

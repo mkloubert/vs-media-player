@@ -890,8 +890,6 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
         
         const ME = this;
 
-        console.log(`newValue: ${newValue}`);
-
         return new Promise<boolean>((resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 

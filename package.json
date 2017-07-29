@@ -30,6 +30,11 @@
                 "category": "Media Player"
             },
             {
+                "command": "extension.mediaPlayer.authorize.spotify",
+                "title": "Authorize for Spotify",
+                "category": "Media Player"
+            },
+            {
                 "command": "extension.mediaPlayer.selectItemOfPlaylist",
                 "title": "Select item of playlist",
                 "category": "Media Player"
@@ -219,6 +224,10 @@
                                             "clientSecret": {
                                                 "type": "string",
                                                 "description": "The client secret of an own registered Spotify app."
+                                            },
+                                            "redirectURL": {
+                                                "type": "string",
+                                                "description": "The redirect URL for the authorization."
                                             }
                                         },
                                         "required": [

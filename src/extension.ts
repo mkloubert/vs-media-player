@@ -67,8 +67,14 @@ export function activate(context: vscode.ExtensionContext) {
         await controller.connect();
     });
 
+    // select item of playlist
     const SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', async () => {
         await controller.selectItemOfPlaylist();
+    });
+
+    // extension.mediaPlayer.authorize.spotify
+    const AUTHORIZE_SPOTIFY = vscode.commands.registerCommand('extension.mediaPlayer.authorize.spotify', async () => {
+        await controller.authorizeForSpotify();
     });
 
     // notfiy setting changes

@@ -22,12 +22,15 @@
 // DEALINGS IN THE SOFTWARE.
 
 import * as Events from 'events';
+import * as HTTP from 'http';
+import * as HTTPs from 'https';
 import * as Moment from 'moment';
 import * as mplayer_contracts from './contracts';
 import * as mplayer_helpers from './helpers';
 import * as mplayer_players_controls from './players/controls';
 import * as mplayer_players_helpers from './players/helpers';
 import * as mplayer_players_vlcplayer from './players/vlcplayer';
+import * as URL from 'url';
 import * as vscode from 'vscode';
 import * as Workflows from 'node-workflows';
 
@@ -93,6 +96,13 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
         this._PACKAGE_FILE = pkgFile;
     }
 
+    /**
+     * Adds statusbar controls to internal list.
+     * 
+     * @param controls The controls to add.
+     * 
+     * @return {boolean} Controls were added or not. 
+     */
     protected addStatusBarControls(controls: mplayer_players_controls.StatusBarController): boolean {
         if (controls) {
             this._connectedPlayers
@@ -109,6 +119,234 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
         }
 
         return false;
+    }
+
+    /**
+     * Authorizes for Spotify.
+     * 
+     * @returns {Promise<any>} The promise.
+     */
+    public authorizeForSpotify(): Promise<any> {
+        const ME = this;
+
+        return new Promise<any>((resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const PLAYERS = ME.getPlayers();
+                
+                const QUICK_PICKS: PlayerConfigQuickPickItem[] = PLAYERS.map((c, i) => {
+                    if ('spotify' !== mplayer_helpers.normalizeString(c.type)) {
+                        return;
+                    }
+
+                    let label = mplayer_helpers.toStringSafe(c.name).trim();
+                    if ('' === label) {
+                        label = `Player #${i + 1}`;
+                    }
+
+                    const DESCRIPTION = mplayer_helpers.toStringSafe(c.description).trim();
+                    
+                    return {
+                        config: c,
+                        label: label,
+                        description: DESCRIPTION,
+                    };
+                }).filter(x => x);
+
+                if (QUICK_PICKS.length < 1) {
+                    vscode.window.showWarningMessage('[vs-media-player] Please define at least one Spotify player in your config!').then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.authorizeForSpotify(1): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const AUTHORIZE = (item: PlayerConfigQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null);
+                        return;
+                    }
+
+                    try {
+                        const CFG = <mplayer_contracts.SpotifyPlayerConfig>item.config;
+
+                        const CLIENT_ID = mplayer_helpers.toStringSafe(CFG.clientID);
+                        if (mplayer_helpers.isEmptyString(CLIENT_ID)) {
+                            vscode.window.showWarningMessage("[vs-media-player] Please define the 'clientID' property!").then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.authorizeForSpotify(2): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+
+                            COMPLETED(null);
+                            return;
+                        }
+
+                        const REDIRECT_URL = mplayer_helpers.toStringSafe(CFG.redirectURL);
+                        if (mplayer_helpers.isEmptyString(REDIRECT_URL)) {
+                            vscode.window.showWarningMessage("[vs-media-player] Please define the 'redirectURL' property!").then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.authorizeForSpotify(3): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+
+                            COMPLETED(null);
+                            return;
+                        }
+
+                        const R_URL = URL.parse(REDIRECT_URL);
+
+                        let url = 'https://accounts.spotify.com/authorize/';
+                        url += "?client_id=" + encodeURIComponent(CLIENT_ID);
+                        url += "&response_type=" + encodeURIComponent('code');
+                        url += "&redirect_uri=" + encodeURIComponent(REDIRECT_URL);
+                        url += "&scope=" + encodeURIComponent([ 'user-library-read',
+                                                                'streaming',
+                                                                'playlist-read-collaborative',
+                                                                'playlist-read-private' ].join(' '));
+                        url += '&show_dialog=true';
+
+                        let port: number;
+                        let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
+                        switch (mplayer_helpers.normalizeString(R_URL.protocol)) {
+                            case 'http:':
+                                port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
+                                if (isNaN(port)) {
+                                    port = 80;
+                                }
+
+                                serverFactory = function() {
+                                    return HTTP.createServer
+                                               .apply(null, arguments);
+                                };
+                                break;
+
+                            case 'https:':
+                                port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
+                                if (isNaN(port)) {
+                                    port = 443;
+                                }
+
+                                serverFactory = function() {
+                                    return HTTPs.createServer
+                                                .apply(null, arguments);
+                                };
+                                break;
+                        }
+
+                        if (serverFactory) {
+                            let server: HTTP.Server;
+                            const CLOSE_SERVER = (err: any) => {
+                                if (server) {
+                                    try {
+                                        server.close(() => {
+                                            COMPLETED(err);
+                                        });
+                                    }
+                                    catch (e) {
+                                        ME.log(`MediaPlayerController.authorizeForSpotify(5): ${mplayer_helpers.toStringSafe(e)}`);
+
+                                        COMPLETED(err);
+                                    }
+                                }
+                                else {
+                                    COMPLETED(err);
+                                }
+                            };
+
+                            let handledRequest = false;
+                            server = serverFactory((req, resp) => {
+                                if (handledRequest) {
+                                    return;
+                                }
+
+                                handledRequest = true;
+
+                                let err: any;
+                                try {
+                                    const PARAMS = mplayer_helpers.queryParamsToObject( URL.parse(req.url).query );
+                                    const CODE = PARAMS['code'];
+                                    if (!mplayer_helpers.isEmptyString(CODE)) {
+                                        CFG.__code = CODE;
+
+                                        vscode.window.showInformationMessage("[vs-media-player] Authorization with Spotify succeeded.").then(() => {
+                                        }, (err) => {
+                                            ME.log(`MediaPlayerController.authorizeForSpotify(7): ${mplayer_helpers.toStringSafe(err)}`);
+                                        });
+                                    }
+                                    else {
+                                        vscode.window.showWarningMessage("[vs-media-player] Spotify send no (valid) code!").then(() => {
+                                        }, (err) => {
+                                            ME.log(`MediaPlayerController.authorizeForSpotify(6): ${mplayer_helpers.toStringSafe(err)}`);
+                                        });
+                                    }
+
+                                    resp.writeHead(200);
+                                    resp.end();
+                                }
+                                catch (e) {
+                                    err = e;
+                                }
+                                finally {
+                                    CLOSE_SERVER(err);
+                                }
+                            });
+
+                            server.on('error', (err) => {
+                                if (err) {
+                                    CLOSE_SERVER(err);
+                                }
+                            });
+
+                            server.listen(port, (err) => {
+                                if (err) {
+                                    CLOSE_SERVER(err);
+                                }
+                                else {
+                                    mplayer_helpers.open(url, {
+                                        wait: false,
+                                    }).then(() => {                                        
+                                    }).catch((err) => {
+                                        CLOSE_SERVER(err);
+                                    });
+                                }
+                            });
+                        }
+                        else {
+                            vscode.window.showWarningMessage("[vs-media-player] HTTP protocol NOT supported!").then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.authorizeForSpotify(4): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+
+                            COMPLETED(null);
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                if (QUICK_PICKS.length > 1) {
+                    vscode.window.showQuickPick(QUICK_PICKS, {
+                        placeHolder: 'Select the Spotify player...',
+                    }).then((item) => {
+                        AUTHORIZE(item);
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.authorizeForSpotify(1): ${mplayer_helpers.toStringSafe(err)}`);
+
+                        COMPLETED(err);
+                    });
+                }
+                else {
+                    // the one and only.
+                    AUTHORIZE(QUICK_PICKS[0]);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
     }
 
     /**
