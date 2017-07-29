@@ -90,6 +90,21 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
 }
 
 /**
+ * Disconnects from a player.
+ * 
+ * @param {mplayer_players_controls.StatusBarController} controls The controls and the player.
+ * 
+ * @returns {Promise<boolean>} Promise that indicates if player has been disconnected or not. 
+ */
+export async function disconnectFrom(controls: mplayer_players_controls.StatusBarController): Promise<boolean> {
+    if (controls && controls.player && mplayer_helpers.toBooleanSafe(controls.player.isConnected)) {
+        return disposeControlsAndPlayer(controls);
+    }
+
+    return null;
+}
+
+/**
  * Disposes player controls and the underlying player.
  * 
  * @param {mplayer_players_controls.StatusBarController} controls The controls to dispose.

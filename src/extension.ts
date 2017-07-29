@@ -68,6 +68,11 @@ export function activate(context: vscode.ExtensionContext) {
         await controller.connect();
     });
 
+    // disconnects from a player
+    const CMD_DISCONNECT = vscode.commands.registerCommand('extension.mediaPlayer.disconnect', async () => {
+        await controller.disconnect();
+    });
+
     // select item of playlist
     const CMD_SELECT_ITEM_OF_PLAYLIST = vscode.commands.registerCommand('extension.mediaPlayer.selectItemOfPlaylist', async () => {
         await controller.selectItemOfPlaylist();
@@ -79,7 +84,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // commands
     context.subscriptions
-           .push(CMD_CONNECT, CMD_SELECT_ITEM_OF_PLAYLIST);
+           .push(CMD_CONNECT, CMD_DISCONNECT,
+                 CMD_SELECT_ITEM_OF_PLAYLIST);
 
     controller.onActivated();
     context.subscriptions

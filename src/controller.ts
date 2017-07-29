@@ -47,6 +47,10 @@ interface PlaylistQuickPickItem extends vscode.QuickPickItem {
     readonly playlist: mplayer_contracts.Playlist;
 }
 
+interface StatusBarControlsQuickPickItem extends vscode.QuickPickItem {
+    readonly controls: mplayer_players_controls.StatusBarController;
+}
+
 interface TrackQuickPickItem extends vscode.QuickPickItem {
     readonly track: mplayer_contracts.Track;
 }
@@ -129,7 +133,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     /**
      * Connects to a player.
      * 
-     * @returns {Promise<any>} The promise.
+     * @returns {Promise<boolean>} The promise that indicates if operation was successful or not.
      */
     public connect(): Promise<boolean> {
         const ME = this;
@@ -138,9 +142,14 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
             try {
-                const PLAYERS = ME.getPlayers() || [];
+                const CONNECTED_PLAYERS = (this._connectedPlayers || []).filter(cp => cp);
+
+                const PLAYERS = (ME.getPlayers() || []).filter(p => {
+                    return CONNECTED_PLAYERS.map(cp => cp.player.id)
+                                            .indexOf(p.__id) < 0;  // only if NOT connected
+                });
                 if (PLAYERS.length < 1) {
-                    vscode.window.showWarningMessage('[vs-media-player] Please define at least one player in your settings!').then(() => {
+                    vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
                     }, (err) => {
                         ME.log(`MediaPlayerController.connect(2): ${mplayer_helpers.toStringSafe(err)}`);
                     });
@@ -224,6 +233,92 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      */
     public get context(): vscode.ExtensionContext {
         return this._CONTEXT;
+    }
+
+    /**
+     * Disconnects to a player.
+     * 
+     * @returns {Promise<boolean>} The promise that indicates if operation was successful or not.
+     */
+    public disconnect(): Promise<boolean> {
+        const ME = this;
+        
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
+
+                const QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
+                    let label = '';
+                    let description = '';
+                    if (c.player && c.player.config) {
+                        label = mplayer_helpers.toStringSafe(c.player.config.name).trim();
+                        description = mplayer_helpers.toStringSafe(c.player.config.description).trim();
+                    }
+
+                    if ('' === label) {
+                        label = `Player #${i + 1}`;
+                    }
+
+                    return {
+                        label: label,
+                        controls: c,
+                        description: description,
+                    };
+                });
+
+                if (QUICK_PICKS.length < 1) {
+                    vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.disconnect(2): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const DISCONNECT_FROM = async (item: StatusBarControlsQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null, false);
+                        return;
+                    }
+
+                    try {
+                        const CONTROLS = item.controls;
+
+                        mplayer_players_helpers.disconnectFrom(item.controls);
+
+                        ME._connectedPlayers = (ME._connectedPlayers || []).filter(cp => {
+                            return cp !== CONTROLS;
+                        });
+
+                        COMPLETED(null, true);
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                if (QUICK_PICKS.length > 1) {
+                    vscode.window.showQuickPick(QUICK_PICKS, {
+                        placeHolder: 'Select the media player to disconnect from...',
+                    }).then(async (item) => {
+                        await DISCONNECT_FROM(item);
+                    }, (err) => {
+                        COMPLETED(err);
+                    });
+                }
+                else {
+                    await DISCONNECT_FROM(QUICK_PICKS[0]);
+                }
+            }
+            catch (e) {
+                ME.log(`MediaPlayerController.disconnect(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+                COMPLETED(e);
+            }
+        });
     }
 
     /** @inheritdoc */
