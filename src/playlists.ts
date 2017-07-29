@@ -58,6 +58,16 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
 
         const PL_ITEM: mplayer_contracts.ActionQuickPickItem = {
             description: '',
+            action: async () => {
+                try {
+                    if (TRACKS.length > 0) {
+                        await TRACKS[0].play();
+                    }
+                }
+                catch (e) {
+                    mplayer_helpers.log(`[ERROR] playlists.playTrack(5): ${mplayer_helpers.toStringSafe(e)}`);
+                }
+            },
             label: '$(list-unordered) ' + label,
             state: PL,
         };
@@ -81,7 +91,7 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
                     }
                 },
                 description: '',
-                label: "  $(triangle-right) " + ` [${j + 1}] ${label}`,
+                label: "  $(triangle-right) " + `   [${j + 1}] ${label}`,
                 state: T,
             };
             QUICK_PICKS.push(T_ITEM);

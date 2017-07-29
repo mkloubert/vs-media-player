@@ -595,10 +595,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 }
                 catch (e) { }
 
-                resolve(TRACKS.sort((x, y) => {
-                    return mplayer_helpers.compareValuesBy(x, y,
-                                                           tr => mplayer_helpers.normalizeString(tr.name));
-                }));
+                resolve(TRACKS);
             });
         };
     }
