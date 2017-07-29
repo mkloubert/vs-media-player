@@ -35,6 +35,8 @@ import * as vscode from 'vscode';
 
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
 
+let nextCommandId = -1;
+
 class WebApi {
     protected _client: any;
     protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
@@ -93,7 +95,7 @@ class WebApi {
             this._client = null;
             this._expiresIn = null;
 
-            console.log(`[ERROR] SpotifyPlayer.getWebApiClient(): ${mplayer_helpers.toStringSafe(e)}`);
+            console.log(`[ERROR] SpotifyPlayer.WebApi.getClient(): ${mplayer_helpers.toStringSafe(e)}`);
         }
         
         return this._client;
@@ -107,7 +109,15 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /**
      * Stores the current API.
      */
-    protected _API: WebApi;
+    protected readonly _API: WebApi;
+    /**
+     * Stores the command to authorize with Web API.
+     */
+    protected _authorizeWebAPICommand: vscode.Disposable;
+    /**
+     * Stores the name of the VSCode command to authorize with Web API.
+     */
+    protected _authorizeWebAPICommandName: string;
     /**
      * Stores the current client.
      */
@@ -147,6 +157,172 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         this._CONFIG = cfg;
         this._CONTEXT = context;
         this._API = new WebApi(cfg);
+    }
+
+    /**
+     * Authorizes for Spotify.
+     * 
+     * @returns {Promise<any>} The promise.
+     */
+    protected authorizeWithWebAPI(): Promise<any> {
+        const ME = this;
+
+        return new Promise<any>((resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const CLIENT_ID = mplayer_helpers.toStringSafe(ME.config.clientID);
+                if (mplayer_helpers.isEmptyString(CLIENT_ID)) {
+                    vscode.window.showWarningMessage("[vs-media-player] Please define the 'clientID' property!").then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.authorizeForSpotify(2): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const REDIRECT_URL = mplayer_helpers.toStringSafe(ME.config.redirectURL);
+                if (mplayer_helpers.isEmptyString(REDIRECT_URL)) {
+                    vscode.window.showWarningMessage("[vs-media-player] Please define the 'redirectURL' property!").then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.authorizeForSpotify(3): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const R_URL = URL.parse(REDIRECT_URL);
+
+                let url = 'https://accounts.spotify.com/authorize/';
+                url += "?client_id=" + encodeURIComponent(CLIENT_ID);
+                url += "&response_type=" + encodeURIComponent('code');
+                url += "&redirect_uri=" + encodeURIComponent(REDIRECT_URL);
+                url += "&scope=" + encodeURIComponent([ 'user-library-read',
+                                                        'streaming',
+                                                        'playlist-read-collaborative',
+                                                        'playlist-read-private' ].join(' '));
+
+                let port: number;
+                let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
+                switch (mplayer_helpers.normalizeString(R_URL.protocol)) {
+                    case 'http:':
+                        port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
+                        if (isNaN(port)) {
+                            port = 80;
+                        }
+
+                        serverFactory = function() {
+                            return HTTP.createServer
+                                        .apply(null, arguments);
+                        };
+                        break;
+
+                    case 'https:':
+                        port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
+                        if (isNaN(port)) {
+                            port = 443;
+                        }
+
+                        serverFactory = function() {
+                            return HTTPs.createServer
+                                        .apply(null, arguments);
+                        };
+                        break;
+                }
+
+                if (serverFactory) {
+                    let server: HTTP.Server;
+                    const CLOSE_SERVER = (err: any) => {
+                        if (server) {
+                            try {
+                                server.close(() => {
+                                    COMPLETED(err);
+                                });
+                            }
+                            catch (e) {
+                                ME.log(`MediaPlayerController.authorizeForSpotify(5): ${mplayer_helpers.toStringSafe(e)}`);
+
+                                COMPLETED(err);
+                            }
+                        }
+                        else {
+                            COMPLETED(err);
+                        }
+                    };
+
+                    let handledRequest = false;
+                    server = serverFactory((req, resp) => {
+                        if (handledRequest) {
+                            return;
+                        }
+
+                        handledRequest = true;
+
+                        let err: any;
+                        try {
+                            const PARAMS = mplayer_helpers.queryParamsToObject( URL.parse(req.url).query );
+                            const CODE = PARAMS['code'];
+                            if (!mplayer_helpers.isEmptyString(CODE)) {
+                                ME.config.__code = CODE;
+
+                                vscode.window.showInformationMessage("[vs-media-player] Authorization with Spotify succeeded.").then(() => {
+                                }, (err) => {
+                                    ME.log(`MediaPlayerController.authorizeForSpotify(7): ${mplayer_helpers.toStringSafe(err)}`);
+                                });
+                            }
+                            else {
+                                vscode.window.showWarningMessage("[vs-media-player] Spotify send no (valid) code!").then(() => {
+                                }, (err) => {
+                                    ME.log(`MediaPlayerController.authorizeForSpotify(6): ${mplayer_helpers.toStringSafe(err)}`);
+                                });
+                            }
+
+                            resp.writeHead(200);
+                            resp.end();
+                        }
+                        catch (e) {
+                            err = e;
+                        }
+                        finally {
+                            CLOSE_SERVER(err);
+                        }
+                    });
+
+                    server.on('error', (err) => {
+                        if (err) {
+                            CLOSE_SERVER(err);
+                        }
+                    });
+
+                    server.listen(port, (err) => {
+                        if (err) {
+                            CLOSE_SERVER(err);
+                        }
+                        else {
+                            mplayer_helpers.open(url, {
+                                wait: false,
+                            }).then(() => {                                        
+                            }).catch((err) => {
+                                CLOSE_SERVER(err);
+                            });
+                        }
+                    });
+                }
+                else {
+                    vscode.window.showWarningMessage("[vs-media-player] HTTP protocol NOT supported!").then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.authorizeForSpotify(4): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
     }
 
     /**
@@ -286,6 +462,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
     /** @inheritdoc */
     public dispose() {
+        mplayer_helpers.tryDispose( this._authorizeWebAPICommand );
+
         this.removeAllListeners();
     }
 
@@ -505,7 +683,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         catch (e) { }
 
                         if (!isAuthorized) {
-                            (<any>BUTTON)['command'] = 'extension.mediaPlayer.authorize.spotify';
+                            (<any>BUTTON)['command'] = ME._authorizeWebAPICommandName;
                             (<any>BUTTON)['text'] = '$(plug)';
                             (<any>BUTTON)['tooltip'] = 'Not authorized!';
                             (<any>BUTTON)['color'] = '#ffff00';
@@ -534,6 +712,15 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /** @inheritdoc */
     public initialize(): void {
         if (!this.isInitialized) {
+            const ME = this;
+            const CMD_ID_SUFFIX = ++nextCommandId;
+
+            const CMD_NAME = 'extension.mediaPlayer.spotify.authorize' + CMD_ID_SUFFIX;
+            ME._authorizeWebAPICommand = vscode.commands.registerCommand(CMD_NAME, async () => {
+                await ME.authorizeWithWebAPI();
+            });
+            ME._authorizeWebAPICommandName = CMD_NAME;
+
             this._isInitialized = true;
         }
     }
@@ -553,6 +740,18 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
      */
     public get localUrl(): string {
         return this.client['spotilocalUrl'];
+    }
+
+    /**
+     * Logs a message.
+     * 
+     * @param {any} msg The message to log.
+     * 
+     * @returns {this}
+     */
+    public log(msg: any): this {
+        mplayer_helpers.log(msg);
+        return this;
     }
 
     /** @inheritdoc */
