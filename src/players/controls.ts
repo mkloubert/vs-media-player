@@ -154,9 +154,6 @@ export class StatusBarController implements vscode.Disposable {
             const UPDATE_BUTTON_TEXT = (btn: vscode.StatusBarItem, text: string, tooltip?: string,
                                         color?: string) => {
                 color = mplayer_helpers.normalizeString(color);
-                if ('' === color) {
-                    color = '#ffffff';
-                }
 
                 text = mplayer_helpers.toStringSafe(text);
                 tooltip = mplayer_helpers.toStringSafe(tooltip);
@@ -168,8 +165,11 @@ export class StatusBarController implements vscode.Disposable {
                     if (btn.tooltip !== tooltip) {
                         btn.tooltip = tooltip;
                     }
-                    if (btn.color !== color) {
-                        btn.color = color;
+
+                    if ('' !== color) {
+                        if (btn.color !== color) {
+                            btn.color = color;
+                        }
                     }
                 }
             };
@@ -399,7 +399,7 @@ export class StatusBarController implements vscode.Disposable {
 
                 isUpdatingStatus = true;
                 try {
-                    let toggleMuteColor: string;
+                    let toggleMuteColor = '#ffffff';
                     let toggleMuteText = '';
                     let toggleMuteTooltipText = '';
                     let togglePlayText = '---';

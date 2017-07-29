@@ -115,6 +115,8 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer,
                 }
             }
 
+            UPDATE_PROGRESS('');
+
             if (QUICK_PICKS.length > 0) {
                 vscode.window.showQuickPick(QUICK_PICKS, {
                     placeHolder: 'Select an item of a playlist...',
