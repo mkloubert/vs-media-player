@@ -304,13 +304,19 @@ export class StatusBarController implements vscode.Disposable {
             let trackButton: vscode.StatusBarItem;
             const CMD_SELECT_TRACK = `${COMMAND_PREFIX}selectTrack`;
             {
-                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, async () => {
-                    try {
-                        await mplayer_playlists.playTrack(ME.player);
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, () => {
+                    return Promise.resolve(
+                        vscode.window.withProgress({
+                            location: vscode.ProgressLocation.Window,
+                        }, async (progress) => {
+                            try {
+                                await mplayer_playlists.playTrack(ME.player, progress);
+                            }
+                            catch (e) {
+                                mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
+                            }
+                        })
+                    );
                 }));
 
                 NEW_ITEMS.push(trackButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(6)));

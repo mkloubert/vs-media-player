@@ -33,13 +33,24 @@ import * as vscode from 'vscode';
  * 
  * @returns {Promise<void>} The promise.
  */
-export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<void> {
+export async function playTrack(player: mplayer_contracts.MediaPlayer,
+                                progress?: vscode.Progress<{ message?: string; }>): Promise<void> {
+    const UPDATE_PROGRES = (msg?: string) => {
+        if (progress) {
+            progress.report( {
+                message: mplayer_helpers.normalizeString(msg),
+            });
+        }
+    };
+
     const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
 
     const PLAYLISTS = ((await player.getPlaylists()) || []).filter(p => p);
     
     for (let i = 0; i < PLAYLISTS.length; i++) {
         const PL = PLAYLISTS[i];
+
+        UPDATE_PROGRES(`Loading tracks ${i + 1} / ${PLAYLISTS.length} (${Math.floor(i / PLAYLISTS.length * 100.0)} %)`);
 
         const TRACKS = ((await PL.getTracks()) || []).filter(t => t);
         if (TRACKS.length < 1) {
