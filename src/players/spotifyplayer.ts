@@ -925,16 +925,85 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     public next(): Promise<boolean> {
         const ME = this;
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, false);
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
 
-            //TODO: Not supported
             try {
-                COMPLETED(null, false);
+                const CLIENT = await ME._API.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player/next',
+                                        method: 'POST',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '204':
+                                                    COMPLETED(null, true);  // OK
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+
+                                                        COMPLETED(null, false);
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            FALLBACK();
+                                        }
+                                    });
+
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            }
+
+                            doRequest();
+                            return;
+                        }
+                    }  
+                }
             }
-            catch (e) {
-                COMPLETED(e);
-            }
+            catch (e) {}
+            
+            FALLBACK();
         });
     }
 
@@ -986,16 +1055,85 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     public prev(): Promise<boolean> {
         const ME = this;
 
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, false);
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
 
-            //TODO: Not supported
             try {
-                COMPLETED(null, false);
+                const CLIENT = await ME._API.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player/previous',
+                                        method: 'POST',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '204':
+                                                    COMPLETED(null, true);  // OK
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+
+                                                        COMPLETED(null, false);
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            FALLBACK();
+                                        }
+                                    });
+
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            }
+
+                            doRequest();
+                            return;
+                        }
+                    }  
+                }
             }
-            catch (e) {
-                COMPLETED(e);
-            }
+            catch (e) {}
+            
+            FALLBACK();
         });
     }
 
@@ -1031,8 +1169,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                     if (CREDETIALS) {
                         const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
                         if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
-                            // https://api.spotify.com/v1/me/player/volume
-
                             let doRequest: () => void;
                             let retries = 5;
 
