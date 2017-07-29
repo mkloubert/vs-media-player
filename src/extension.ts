@@ -30,6 +30,7 @@ import * as mplayer_helpers from './helpers';
 import * as Path from 'path';
 import * as vscode from 'vscode';
 
+
 let controller: mplayer_controller.MediaPlayerController;
 
 export function activate(context: vscode.ExtensionContext) {

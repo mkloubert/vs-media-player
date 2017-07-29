@@ -26,6 +26,7 @@ import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_controls from '../players/controls';
 import * as mplayer_players_spotifyplayer from '../players/spotifyplayer';
 import * as mplayer_players_vlcplayer from '../players/vlcplayer';
+import * as vscode from 'vscode';
 
 
 /**
@@ -37,10 +38,12 @@ export type ConnectToResult = mplayer_players_controls.StatusBarController | fal
  * Connects to a player.
  * 
  * @param {mplayer_contracts.PlayerConfig} cfg The configuration.
+ * @param {vscode.ExtensionContext} context The extension context.
  * 
  * @returns {Promise<ConnectToResult>} The promise with the result.
  */
-export async function connectTo(cfg: mplayer_contracts.PlayerConfig): Promise<ConnectToResult> {
+export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
+                                context: vscode.ExtensionContext): Promise<ConnectToResult> {
     const ID = cfg.__id;
 
     if (!cfg) {
@@ -54,15 +57,21 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig): Promise<Co
     let player: mplayer_contracts.MediaPlayer;
     switch (TYPE) {
         case 'spotify':
-            player = new mplayer_players_spotifyplayer.SpotifyPlayer(ID, <mplayer_contracts.SpotifyPlayerConfig>cfg);
+            player = new mplayer_players_spotifyplayer.SpotifyPlayer(ID,
+                                                                     <mplayer_contracts.SpotifyPlayerConfig>cfg, context);
             break;
 
         case 'vlc':
-            player = new mplayer_players_vlcplayer.VLCPlayer(ID, <mplayer_contracts.VLCPlayerConfig>cfg);
+            player = new mplayer_players_vlcplayer.VLCPlayer(ID,
+                                                             <mplayer_contracts.VLCPlayerConfig>cfg, context);
             break;
     }
 
     if (player) {
+        if (!mplayer_helpers.toBooleanSafe(player.isInitialized)) {
+            await player.initialize();
+        }
+
         if (!mplayer_helpers.toBooleanSafe(player.isConnected)) {
             const HAS_CONNECTED = mplayer_helpers.toBooleanSafe( await player.connect() );
             if (HAS_CONNECTED) {

@@ -384,7 +384,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                         return;
                     }
 
-                    mplayer_players_helpers.connectTo(item.config).then((newController) => {
+                    mplayer_players_helpers.connectTo(item.config, ME.context).then((newController) => {
                         let result = false;
 
                         if (false !== newController) {
@@ -466,6 +466,26 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     }
 
     /**
+     * Diposes all current players.
+     * 
+     * @return {boolean} Players were disposed or not.
+     */
+    protected disposeOldPlayers(): boolean {
+        const OLD_PLAYERS = this._connectedPlayers;
+        if (OLD_PLAYERS)
+        {
+            OLD_PLAYERS.filter(op => op).forEach(op => {
+                mplayer_players_helpers.disposeControlsAndPlayer(op);
+            });
+
+            this._connectedPlayers = null;
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Returns the list of players configurations.
      * 
      * @returns {mplayer_contracts.PlayerConfig[]} The list of configurations.
@@ -507,6 +527,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      * Is invoked when extension is going to be deactivated.
      */
     public onDeactivate() {
+        this.disposeOldPlayers();
     }
 
     /**
@@ -551,15 +572,9 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             const WF = Workflows.create();
 
             // dispose old players
-            const OLD_PLAYERS = ME._connectedPlayers;
-            if (OLD_PLAYERS)
-            {
-                OLD_PLAYERS.filter(op => op).forEach(op => {
-                    WF.next(() => {
-                        mplayer_players_helpers.disposeControlsAndPlayer(op);
-                    });
-                });
-            }
+            WF.next(() => {
+                ME.disposeOldPlayers();
+            });
 
             WF.next(() => {
                 ME._connectedPlayers = [];
@@ -578,7 +593,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     if (mplayer_helpers.toBooleanSafe(p.connectOnStartup, true)) {
                         WF.next(async () => {
                             try {
-                                const NEW_CONTROLS = await mplayer_players_helpers.connectTo(p);
+                                const NEW_CONTROLS = await mplayer_players_helpers.connectTo(p, ME.context);
                                 if (NEW_CONTROLS) {
                                     ME.addStatusBarControls(NEW_CONTROLS);
                                 }

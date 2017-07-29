@@ -84,9 +84,19 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly id: number;
     /**
+     * Initializes the player.
+     * 
+     * @return {any} The result.
+     */
+    readonly initialize: () => any;
+    /**
      * Gets if the player is connected or not.
      */
     readonly isConnected: boolean;
+    /**
+     * Gets if the player has been initialized or not.
+     */
+    readonly isInitialized: boolean;
     /**
      * Plays / selects the next track.
      * 

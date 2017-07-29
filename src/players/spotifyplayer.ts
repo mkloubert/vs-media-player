@@ -30,6 +30,7 @@ import * as mplayer_helpers from '../helpers';
 const SpotifyWebApi = require('spotify-web-api-node');
 import { Spotilocal } from 'spotilocal';
 import * as URL from 'url';
+import * as vscode from 'vscode';
 
 
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
@@ -116,16 +117,26 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
      */
     protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
     /**
+     * Stores the underlying extension context.
+     */
+    protected readonly _CONTEXT: vscode.ExtensionContext;
+    /**
      * Stores the ID.
      */
     protected readonly _ID: number;
+    /**
+     * Stores if player has been initialized or not.
+     */
+    protected _isInitialized = false;
 
     /**
      * Initializes a new instance of that class.
      * 
      * @param {mplayer_contracts.SpotifyPlayerConfig} cfg The underlying configuration.
+     * @param {vscode.ExtensionContext} context The extension context.
      */
-    constructor(id: number, cfg: mplayer_contracts.SpotifyPlayerConfig) {
+    constructor(id: number,
+                cfg: mplayer_contracts.SpotifyPlayerConfig, context: vscode.ExtensionContext) {
         super();
 
         if (!cfg) {
@@ -134,6 +145,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
         this._ID = id;
         this._CONFIG = cfg;
+        this._CONTEXT = context;
         this._API = new WebApi(cfg);
     }
 
@@ -275,6 +287,11 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /** @inheritdoc */
     public dispose() {
         this.removeAllListeners();
+    }
+
+    /** @inheritdoc */
+    public get extension(): vscode.ExtensionContext {
+        return this._CONTEXT;
     }
 
     /**
@@ -515,8 +532,20 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /** @inheritdoc */
+    public initialize(): void {
+        if (!this.isInitialized) {
+            this._isInitialized = true;
+        }
+    }
+
+    /** @inheritdoc */
     public get isConnected(): boolean {
         return !mplayer_helpers.isNullOrUndefined(this._client);
+    }
+
+    /** @inheritdoc */
+    public get isInitialized(): boolean {
+        return this._isInitialized;
     }
 
     /**

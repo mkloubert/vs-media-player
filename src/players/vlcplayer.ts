@@ -43,6 +43,10 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      */
     protected readonly _CONFIG: mplayer_contracts.VLCPlayerConfig;
     /**
+     * Stores the underlying extension context.
+     */
+    protected readonly _CONTEXT: vscode.ExtensionContext;
+    /**
      * Stores the ID.
      */
     protected readonly _ID: number;
@@ -50,13 +54,19 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      * Stores if the player is currently connected or not.
      */
     protected _isConnected = false;
+    /**
+     * Stores if player has been initialized or not.
+     */
+    protected _isInitialized = false;
 
     /**
      * Initializes a new instance of that class.
      * 
      * @param {mplayer_contracts.VLCPlayerConfig} cfg The underlying configuration.
+     * @param {vscode.ExtensionContext} context The extension context.
      */
-    constructor(id: number, cfg: mplayer_contracts.VLCPlayerConfig) {
+    constructor(id: number,
+                cfg: mplayer_contracts.VLCPlayerConfig, context: vscode.ExtensionContext) {
         super();
 
         if (!cfg) {
@@ -65,6 +75,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
 
         this._ID = id;
         this._CONFIG = cfg;
+        this._CONTEXT = context;
     }
 
     /**
@@ -374,6 +385,11 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     }
 
     /** @inheritdoc */
+    public get extension(): vscode.ExtensionContext {
+        return this._CONTEXT;
+    }
+
+    /** @inheritdoc */
     public getPlaylists() {
         const ME = this;
 
@@ -677,8 +693,20 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     }
 
     /** @inheritdoc */
+    public initialize(): void {
+        if (!this.isInitialized) {
+            this._isInitialized = true;
+        }
+    }
+
+    /** @inheritdoc */
     public get isConnected(): boolean {
         return this._isConnected;
+    }
+
+    /** @inheritdoc */
+    public get isInitialized(): boolean {
+        return this._isInitialized;
     }
 
     /** @inheritdoc */
