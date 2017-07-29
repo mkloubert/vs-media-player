@@ -123,7 +123,7 @@ export class StatusBarController implements vscode.Disposable {
                 buttonOffset = 10;
             }
 
-            const MAX_BUTTON_COUNT = 8;
+            const MAX_BUTTON_COUNT = 9;
             const GET_PRIORITY = (offset: number): number => {
                 let playerId = parseInt( mplayer_helpers.toStringSafe(ME.player.id).trim() );
                 if (isNaN(playerId)) {
@@ -365,6 +365,14 @@ export class StatusBarController implements vscode.Disposable {
                 SET_BUTTON_VISIBILITY(toggleMuteButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleMuteButton, true ));
             }
 
+            // [8] info button
+            let infoButton: vscode.StatusBarItem;
+            {
+                NEW_ITEMS.push(infoButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
+                infoButton.text = '';
+                infoButton.hide();
+            }
+
             // status updater
             let isUpdatingStatus = false;
             NEW_ITEMS.push(new Timer(setInterval(async () => {
@@ -436,6 +444,44 @@ export class StatusBarController implements vscode.Disposable {
                     UPDATE_BUTTON_TEXT(togglePlayButton, togglePlayText, togglePlayTooltipText);
                     UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText);
                     UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText);
+
+                    // info button
+                    try {
+                        let infoButtonText = '';
+                        let infoButtonTooltipText = '';
+                        let infoButtonColor = '';
+                        let infoButtonCommand = '';
+
+                        if (STATUS.button) {
+                            infoButtonText = mplayer_helpers.toStringSafe(STATUS.button.text);
+                            infoButtonTooltipText = mplayer_helpers.toStringSafe(STATUS.button.tooltip);
+
+                            infoButtonColor = mplayer_helpers.normalizeString(STATUS.button.color);
+                            infoButtonCommand = mplayer_helpers.toStringSafe(STATUS.button.command);
+                        }
+
+                        if (mplayer_helpers.isEmptyString(infoButtonColor)) {
+                            infoButtonColor = '#ffffff';
+                        }
+                        if (mplayer_helpers.isEmptyString(infoButtonCommand)) {
+                            infoButtonCommand = undefined;
+                        }
+
+                        infoButton.command = infoButtonCommand;
+                        infoButton.color = infoButtonColor;
+
+                        UPDATE_BUTTON_TEXT(infoButton, infoButtonText, infoButtonTooltipText);
+
+                        if (mplayer_helpers.isEmptyString(infoButtonText)) {
+                            infoButton.hide();
+                        }
+                        else {
+                            infoButton.show();
+                        }
+                    }
+                    catch (e) {
+
+                    }
                 }
                 finally {
                     isUpdatingStatus = false;

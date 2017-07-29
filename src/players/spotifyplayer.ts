@@ -32,6 +32,8 @@ import { Spotilocal } from 'spotilocal';
 import * as URL from 'url';
 
 
+type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
+
 class WebApi {
     protected _client: any;
     protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
@@ -211,6 +213,59 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /**
+     * Creates a track list provider for a playlist.
+     * 
+     * @param {any} client The Web API client.
+     * @param {string} user The user.
+     * @param {mplayer_contracts.Playlist} playlist The playlist.
+     * 
+     * @return {TrackListProvider} The function.
+     */
+    protected createTrackListProvider(client: any, user: string, playlist: mplayer_contracts.Playlist): TrackListProvider {
+        const ME = this;
+
+        return () => {
+            return new Promise<mplayer_contracts.Track[]>(async (resolve, reject) => {
+                const TRACKS: mplayer_contracts.Track[] = [];
+
+                try {
+                    const PLAYLIST_TRACKS = await client.getPlaylistTracks(user, playlist.id, { 'offset' : 0, 'fields' : 'items' });
+                    if (PLAYLIST_TRACKS) {
+                        const ITEMS = mplayer_helpers.asArray(PLAYLIST_TRACKS.body['items']).filter(i => i);
+                        ITEMS.forEach(i => {
+                            const TRACK_DATA = i['track'];
+                            if (TRACK_DATA) {
+                                const NEW_TRACK: mplayer_contracts.Track = {
+                                    id: mplayer_helpers.toStringSafe(TRACK_DATA['uri']),
+                                    name: mplayer_helpers.toStringSafe(TRACK_DATA['name']),
+                                    play: function() {
+                                        return new Promise<boolean>(async (res, rej) => {
+                                            try {
+                                                await ME.client.play( mplayer_helpers.toStringSafe(TRACK_DATA['uri']) );
+
+                                                res(true);
+                                            }
+                                            catch (e) {
+                                                rej(e);
+                                            }
+                                        });
+                                    },
+                                    playlist: playlist,
+                                };
+
+                                TRACKS.push(NEW_TRACK);
+                            }
+                        });
+                    }
+                }
+                catch (e) { }
+
+                resolve(TRACKS);
+            });
+        };
+    }
+
+    /**
      * Gets the CSRF.
      */
     public get csrf(): string {
@@ -261,6 +316,41 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
             //TODO: Not supported
             try {
+                try {
+                    const CLIENT = await ME._API.getClient();
+                    if (CLIENT) {
+                        const USER = await CLIENT.getMe();
+                        if (USER) {
+                            const USER_ID: string = mplayer_helpers.toStringSafe(USER.body['id']);
+                            if (!mplayer_helpers.isEmptyString(USER_ID)) {
+                                const PLAYLISTS: mplayer_contracts.Playlist[] = [];
+
+                                const PLAYLIST_DATA = await CLIENT.getUserPlaylists(USER_ID);
+                                if (PLAYLIST_DATA) {
+                                    const ITEMS = mplayer_helpers.asArray(PLAYLIST_DATA.body['items']).filter(i => i);
+                                    ITEMS.forEach(i => {
+                                        const NEW_PLAYLIST: mplayer_contracts.Playlist = {
+                                            id: mplayer_helpers.toStringSafe(i['uri']),
+                                            getTracks: undefined,
+                                            name: mplayer_helpers.toStringSafe(i['name']),
+                                            player: ME,
+                                        };
+
+                                        (<any>NEW_PLAYLIST)['getTracks'] = ME.createTrackListProvider(CLIENT, USER_ID, NEW_PLAYLIST);
+
+                                        PLAYLISTS.push(NEW_PLAYLIST);
+                                    });
+                                }
+
+                                COMPLETED(null, PLAYLISTS);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (e) { }
+
+                // use fallback...
                 ME.client.getStatus().then(async (spotifyStatus) => {
                     try {
                         const PLAYLISTS: mplayer_contracts.Playlist[] = [];
@@ -300,37 +390,45 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             try {
                 this.client.getStatus().then(async (spotifyStatus) => {
                     try {
+                        const BUTTON: mplayer_contracts.PlayerStatusInfoButton = {
+                        };
+
                         const STATUS: mplayer_contracts.PlayerStatus = {
+                            button: BUTTON,
                             isConnected: undefined,
                             player: ME,
                         };
 
                         let track: mplayer_contracts.Track;
                         if (spotifyStatus.track) {
-                            track = {
-                                id: spotifyStatus.track.track_resource.uri,
-                                name: spotifyStatus.track.track_resource.name,
-                                play: () => {
-                                    return Promise.resolve(false);
-                                },
-                                playlist: undefined,
-                            };
+                            if (!track) {
+                                // use fallback
+                            
+                                track = {
+                                    id: spotifyStatus.track.track_resource.uri,
+                                    name: spotifyStatus.track.track_resource.name,
+                                    play: () => {
+                                        return Promise.resolve(false);
+                                    },
+                                    playlist: undefined,
+                                };
 
-                            const DUMMY_PLAYLIST: mplayer_contracts.Playlist = {
-                                id: '1',
-                                getTracks: () => {
-                                    return Promise.resolve( [ track ] );
-                                },
-                                player: ME,
-                            };
+                                const DUMMY_PLAYLIST: mplayer_contracts.Playlist = {
+                                    id: '1',
+                                    getTracks: () => {
+                                        return Promise.resolve( [ track ] );
+                                    },
+                                    player: ME,
+                                };
 
-                            // track.playlist
-                            Object.defineProperty(STATUS, 'playlist', {
-                                enumerable: true,
-                                get: function() {
-                                    return DUMMY_PLAYLIST;
-                                }
-                            });
+                                // track.playlist
+                                Object.defineProperty(STATUS, 'playlist', {
+                                    enumerable: true,
+                                    get: function() {
+                                        return DUMMY_PLAYLIST;
+                                    }
+                                });
+                            }
                         }
 
                         // STATUS.isConnected
@@ -376,6 +474,25 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 return spotifyStatus.volume;
                             }
                         });
+
+                        let isAuthorized = false;
+                        try {
+                            const CLIENT = await ME._API.getClient();
+                            if (CLIENT) {
+                                const USER = await CLIENT.getMe();
+                                if (USER) {
+                                    isAuthorized = true;
+                                }
+                            }
+                        }
+                        catch (e) { }
+
+                        if (!isAuthorized) {
+                            (<any>BUTTON)['command'] = 'extension.mediaPlayer.authorize.spotify';
+                            (<any>BUTTON)['text'] = '$(plug)';
+                            (<any>BUTTON)['tooltip'] = 'Not authorized!';
+                            (<any>BUTTON)['color'] = '#ffff00';
+                        }
 
                         COMPLETED(null, STATUS);
                     }

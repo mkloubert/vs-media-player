@@ -221,6 +221,10 @@ export interface PlayerConfig {
  */
 export interface PlayerStatus {
     /**
+     * Info button.
+     */
+    readonly button?: PlayerStatusInfoButton;
+    /**
      * Gets if the player is currently connected or not.
      */
     readonly isConnected: boolean;
@@ -244,6 +248,28 @@ export interface PlayerStatus {
      * The current volumn (0 = 0%, 1.0 = 100%)
      */
     readonly volume?: number;
+}
+
+/**
+ * Player status info button data.
+ */
+export interface PlayerStatusInfoButton {
+    /**
+     * Color
+     */
+    readonly color?: string;
+    /**
+     * Command
+     */
+    readonly command?: string;
+    /**
+     * Text
+     */
+    readonly text?: string;
+    /**
+     * Tooltip
+     */
+    readonly tooltip?: string;
 }
 
 /**

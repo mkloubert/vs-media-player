@@ -37,7 +37,6 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer): Promise<
     const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
 
     const PLAYLISTS = ((await player.getPlaylists()) || []).filter(p => p);
-
     
     for (let i = 0; i < PLAYLISTS.length; i++) {
         const PL = PLAYLISTS[i];
