@@ -522,9 +522,14 @@ export function withProgress<TResult = void, TState = undefined>(task: (ctx: Pro
                     return currentMessage;
                 },
                 set: (newValue) => {
-                    prog.report({
-                        message: currentMessage = toStringSafe(newValue),
-                    });
+                    try {
+                        prog.report({
+                            message: currentMessage = toStringSafe(newValue),
+                        });
+                    }
+                    catch (e) {
+                        log(`[ERROR] helpers.withProgress(): ${toStringSafe(e)}`);
+                    }
                 }
             });
 

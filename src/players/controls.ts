@@ -201,12 +201,20 @@ export class StatusBarController implements vscode.Disposable {
                 let btn: vscode.StatusBarItem;
 
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_PREV, async () => {
-                    try {
-                        await ME.player.prev();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(prev): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            btn.command = undefined;
+
+                            progress.message = 'Selecting PREVIOUS track...';
+                            await ME.player.prev();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(prev): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            btn.command = CMD_PREV;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(1)));
@@ -221,23 +229,32 @@ export class StatusBarController implements vscode.Disposable {
             const CMD_TOGGLE_PLAY = `${COMMAND_PREFIX}togglePlay`;
             {
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_PLAY, async () => {
-                    try {
-                        const STATUS = await ME.player.getStatus();
-                        if (STATUS) {
-                            switch (STATUS.state) {
-                                case mplayer_contracts.State.Playing:
-                                    await ME.player.pause();
-                                    break;
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            togglePlayButton.command = undefined;
 
-                                default:
-                                    await ME.player.play();
-                                    break;
+                            const STATUS = await ME.player.getStatus();
+                            if (STATUS) {
+                                switch (STATUS.state) {
+                                    case mplayer_contracts.State.Playing:
+                                        progress.message = 'Pausing....';
+                                        await ME.player.pause();
+                                        break;
+
+                                    default:
+                                        progress.message = 'Playing....';
+                                        await ME.player.play();
+                                        break;
+                                }
                             }
                         }
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(togglePlay): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(togglePlay): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            togglePlayButton.command = CMD_TOGGLE_PLAY;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(togglePlayButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(2)));
@@ -252,12 +269,20 @@ export class StatusBarController implements vscode.Disposable {
                 let btn: vscode.StatusBarItem;
 
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_NEXT, async () => {
-                    try {
-                        await ME.player.next();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(next): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            btn.command = undefined;
+
+                            progress.message = 'Selecting NEXT track...';
+                            await ME.player.next();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(next): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            btn.command = CMD_NEXT;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(3)));
@@ -273,12 +298,20 @@ export class StatusBarController implements vscode.Disposable {
                 let btn: vscode.StatusBarItem;
 
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_VOLUME_DOWN, async () => {
-                    try {
-                        await ME.player.volumeDown();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(volumeDown): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            btn.command = undefined;
+
+                            progress.message = 'DEcrease volume...';
+                            await ME.player.volumeDown();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(volumeDown): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            btn.command = CMD_VOLUME_DOWN;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(4)));
@@ -294,12 +327,20 @@ export class StatusBarController implements vscode.Disposable {
                 let btn: vscode.StatusBarItem;
 
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_VOLUME_UP, async () => {
-                    try {
-                        await ME.player.volumeUp();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(volumeUp): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            btn.command = undefined;
+
+                            progress.message = 'INcrease volume...';
+                            await ME.player.volumeUp();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(volumeUp): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            btn.command = CMD_VOLUME_UP;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(btn = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(5)));
@@ -313,13 +354,18 @@ export class StatusBarController implements vscode.Disposable {
             let trackButton: vscode.StatusBarItem;
             const CMD_SELECT_TRACK = `${COMMAND_PREFIX}selectTrack`;
             {
-                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, () => {
-                    return mplayer_helpers.withProgress(async (ctx) => {
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SELECT_TRACK, async () => {
+                    await mplayer_helpers.withProgress(async (progress) => {
                         try {
-                            await mplayer_playlists.playTrack(ME.player, ctx);
+                            trackButton.command = undefined;
+
+                            await mplayer_playlists.playTrack(ME.player, progress);
                         }
                         catch (e) {
                             mplayer_helpers.log(`[ERROR] StatusBarController(selectTrack): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            trackButton.command = CMD_SELECT_TRACK;
                         }
                     });
                 }));
@@ -335,15 +381,11 @@ export class StatusBarController implements vscode.Disposable {
             const CMD_TOGGLE_MUTE = `${COMMAND_PREFIX}toggleMute`;
             {
                 let lastVolumn: number;
-                let isTogglinMute = false;
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_MUTE, async () => {
-                    if (isTogglinMute) {
-                        return;
-                    }
-
-                    isTogglinMute = true;
                     await mplayer_helpers.withProgress(async (progress) => {
                         try {
+                            toggleMuteButton.command = undefined;
+
                             const STATUS = await ME.player.getStatus();
                             if (STATUS) {
                                 let newVolume: number;
@@ -371,7 +413,7 @@ export class StatusBarController implements vscode.Disposable {
                             mplayer_helpers.log(`[ERROR] StatusBarController(toggleMute): ${mplayer_helpers.toStringSafe(e)}`);
                         }
                         finally {
-                            isTogglinMute = false;
+                            toggleMuteButton.command = CMD_TOGGLE_MUTE;
                         }
                     });
                 }));
@@ -387,12 +429,20 @@ export class StatusBarController implements vscode.Disposable {
             const CMD_TOGGLE_REPEATING = `${COMMAND_PREFIX}toggleRepeating`;
             {
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_REPEATING, async () => {
-                    try {
-                        await ME.player.toggleRepeat();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(toggleRepeating): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            toggleRepeatingButton.command = undefined;
+
+                            progress.message = 'Toggle REPEATING...';
+                            await ME.player.toggleRepeat();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(toggleRepeating): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            toggleRepeatingButton.command = CMD_TOGGLE_REPEATING;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(toggleRepeatingButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
@@ -406,12 +456,20 @@ export class StatusBarController implements vscode.Disposable {
             const CMD_TOGGLE_SHUFFLE = `${COMMAND_PREFIX}toggleShuffle`;
             {
                 NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_SHUFFLE, async () => {
-                    try {
-                        await ME.player.toggleShuffle();
-                    }
-                    catch (e) {
-                        mplayer_helpers.log(`[ERROR] StatusBarController(toggleShuffle): ${mplayer_helpers.toStringSafe(e)}`);
-                    }
+                    await mplayer_helpers.withProgress(async (progress) => {
+                        try {
+                            toggleShuffleButton.command = undefined;
+
+                            progress.message = 'Toggle SHUFFLE...';
+                            await ME.player.toggleShuffle();
+                        }
+                        catch (e) {
+                            mplayer_helpers.log(`[ERROR] StatusBarController(toggleShuffle): ${mplayer_helpers.toStringSafe(e)}`);
+                        }
+                        finally {
+                            toggleShuffleButton.command = CMD_TOGGLE_SHUFFLE;
+                        }
+                    });
                 }));
 
                 NEW_ITEMS.push(toggleShuffleButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(9)));

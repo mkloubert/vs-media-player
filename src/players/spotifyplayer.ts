@@ -1489,28 +1489,29 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 let newState: string;
 
                 try {
-                    const STATUS = await ME.getStatus();
+                    const STATUS = await ME.getPlayerStatusFromAPI();
                     if (STATUS) {
-                        if (mplayer_helpers.isNullOrUndefined(STATUS.repeat)) {
-                            newState = 'context';
-                        }
-                        else {
-                            switch (STATUS.repeat) {
-                                case mplayer_contracts.RepeatType.LoopAll:
-                                    newState = 'track';
-                                    break;
+                        const REPEAT_STATE = mplayer_helpers.normalizeString(STATUS.repeat_state);
+                        switch (REPEAT_STATE) {
+                            case 'context':
+                                newState = 'track';
+                                break;
 
-                                case mplayer_contracts.RepeatType.RepeatCurrent:
-                                    newState = 'off';
-                                    break;
-                            }
+                            case 'track':
+                                newState = 'off';
+                                break;
+
+                            default:
+                                newState = 'context';
+                                break;
                         }
                     }
                 }
                 catch (e) { }
 
                 if (mplayer_helpers.isEmptyString(newState)) {
-                    newState = 'off';
+                    FALLBACK();
+                    return;
                 }
 
                 const CLIENT = await ME.api.getClient();
