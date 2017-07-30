@@ -104,6 +104,7 @@ A player entry supports the following, common properties:
 | Play next track |  | X |
 | Play previous track |  | X |
 | Play track |  | X |
+| Search for playlists |  | X |
 | Search for tracks |  | X |
 | Toggle repeating | (only state is displayed) | X |
 | Toggle shuffle | (only state is displayed) | X |
