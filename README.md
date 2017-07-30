@@ -217,6 +217,7 @@ An entry supports the following, additional settings:
 | Name | Description |
 | ---- | --------- |
 | `host` | The host of the (Lua) HTTP service. Default `localhost` |
+| `password` | The password for the (Lua) HTTP service. |
 | `port` | The TCP port of the (Lua) HTTP service. Default `8080` |
 
 ### Commands [[&uarr;](#how-to-use-)]
