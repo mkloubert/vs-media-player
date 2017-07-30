@@ -1,6 +1,6 @@
 # Change Log (vs-media-player)
 
-## 1.2.0 (July 30th, 2017; track search)
+## 1.2.1 (July 30th, 2017; track search)
 
 * can search for tracks now
 
