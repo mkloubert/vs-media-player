@@ -22,6 +22,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 import * as Crypto from 'crypto';
+import * as Enumerable from 'node-enumerable';
 import * as Events from 'events';
 import * as HTTP from 'http';
 import * as HTTPs from 'https';
@@ -62,7 +63,26 @@ interface WebAPISettingsRepository {
     [name: string]: WebAPISettings;
 }
 
+interface WebAPITrackSearchResult {
+    tracks: {
+        items: WebAPITrackSearchResultItem[];
+    };
+}
+
+interface WebAPITrackSearchResultItem {
+    artists: {
+        id: string;
+        name: string;
+        uri: string;
+    }[],
+    id: string;
+    name: string;
+    uri: string;
+}
+
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
+
+type TrackPlayer = () => PromiseLike<boolean>;
 
 let nextCommandId = -1;
 const REPO_KEY = 'vscMediaPlayerSpotifyWebAPI';
@@ -703,18 +723,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     const NEW_TRACK: mplayer_contracts.Track = {
                                         id: mplayer_helpers.toStringSafe(TRACK_DATA['uri']),
                                         name: `${artist}${!mplayer_helpers.isEmptyString(artist) ? ' - ' : ''}${name}`.trim(),
-                                        play: function() {
-                                            return new Promise<boolean>(async (res, rej) => {
-                                                try {
-                                                    await ME.client.play( mplayer_helpers.toStringSafe(TRACK_DATA['uri']) );
-
-                                                    res(true);
-                                                }
-                                                catch (e) {
-                                                    rej(e);
-                                                }
-                                            });
-                                        },
+                                        play: ME.createTrackPlayer(TRACK_DATA['uri']),
                                         playlist: playlist,
                                     };
 
@@ -727,6 +736,30 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
                     COMPLETED(null,
                               trackListCache = TRACKS);
+                }
+            });
+        };
+    }
+
+    /**
+     * Creates a track player function.
+     * 
+     * @param {string} uri The URI.
+     * 
+     * @returns {TrackPlayer} The created function.
+     */
+    protected createTrackPlayer(uri: string): TrackPlayer {
+        const ME = this;
+
+        return () => {
+            return new Promise<boolean>(async (res, rej) => {
+                try {
+                    await ME.client.play( mplayer_helpers.toStringSafe(uri) );
+
+                    res(true);
+                }
+                catch (e) {
+                    rej(e);
                 }
             });
         };
@@ -1605,6 +1638,122 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
             }
             catch (e) {}
             
+            FALLBACK();
+        });
+    }
+
+    /** @inheritdoc */
+    public searchTracks(expr?: string): Promise<mplayer_contracts.TrackSearchResult> {
+        const ME = this;
+
+        const SEARCH_PARTS = Enumerable.from(mplayer_helpers.toStringSafe(expr).split(' ')).select(x => {
+            return mplayer_helpers.normalizeString(x);
+        }).where(x => {
+            return '' !== x;
+        }).distinct()
+          .toArray();
+
+        return new Promise<mplayer_contracts.TrackSearchResult>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, {
+                        tracks: [],
+                    });
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
+
+            try {
+                const CLIENT = await ME.api.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            const OPTS: HTTP.RequestOptions = {
+                                headers: {
+                                    'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                },
+                                hostname: 'api.spotify.com',
+                                path: '/v1/search?q=' + encodeURIComponent( SEARCH_PARTS.join(' ') ) + 
+                                                '&type=' + encodeURIComponent('track') + 
+                                                '&limit=' + encodeURIComponent('25') + 
+                                                '&offset=' + encodeURIComponent('0'),
+                                method: 'GET',
+                            };
+
+                            const REQUEST = HTTPs.request(OPTS, async (resp) => {
+                                try {
+                                    switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                        case '200':
+                                            {
+                                                const SEARCH_RESULT: mplayer_contracts.TrackSearchResult = {
+                                                    tracks: [],
+                                                };
+
+                                                const PLAYLIST: mplayer_contracts.Playlist = {
+                                                    id: -1,
+                                                    getTracks: () => Promise.resolve( SEARCH_RESULT.tracks ),
+                                                    name: '',
+                                                    player: ME,
+                                                };
+
+                                                const BODY = await mplayer_helpers.getHttpBody(resp);
+                                                if (BODY) {
+                                                    const RESULT: WebAPITrackSearchResult = JSON.parse( BODY.toString('utf8') );
+                                                    if (RESULT) {
+                                                        if (RESULT.tracks && RESULT.tracks.items) {
+                                                            RESULT.tracks.items.filter(t => t).forEach(t => {
+                                                                let artist = '';
+                                                                let name = mplayer_helpers.toStringSafe(t.name).trim();
+
+                                                                const ARTISTS = mplayer_helpers.asArray(t.artists).filter(a => a);
+                                                                ARTISTS.forEach(a => {
+                                                                    let artistName = mplayer_helpers.toStringSafe(a['name']).trim();
+                                                                    if ('' !== artistName) {
+                                                                        artist = artistName;
+                                                                    }
+                                                                });
+
+                                                                const NEW_TRACK: mplayer_contracts.Track = {
+                                                                    id: mplayer_helpers.toStringSafe(t.uri),
+                                                                    name: `${artist}${!mplayer_helpers.isEmptyString(artist) ? ' - ' : ''}${name}`.trim(),
+                                                                    play: ME.createTrackPlayer(t.uri),
+                                                                    playlist: PLAYLIST,
+                                                                };
+
+                                                                SEARCH_RESULT.tracks
+                                                                             .push(NEW_TRACK);
+                                                            });
+                                                        }
+                                                    }
+                                                }
+
+                                                COMPLETED(null, SEARCH_RESULT);
+                                            }
+                                            break;
+
+                                        default:
+                                            COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                            break;
+                                    }
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            });
+
+                            REQUEST.end();
+                            return;
+                        }
+                    }  
+                }
+            }
+            catch (e) {}
+
             FALLBACK();
         });
     }

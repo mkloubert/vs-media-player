@@ -2,7 +2,7 @@
     "name": "vs-media-player",
     "displayName": "Media Player",
     "description": "Extension to control media players like Spotify or VLC directly from the editor.",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.13.0"
@@ -52,6 +52,11 @@
             {
                 "command": "extension.mediaPlayer.spotify.registerApp",
                 "title": "Register app for Spotify",
+                "category": "Media Player"
+            },
+            {
+                "command": "extension.mediaPlayer.search",
+                "title": "Search",
                 "category": "Media Player"
             }
         ],
@@ -113,6 +118,11 @@
                                                 "description": "Show buttons on the RIGHT side or not.",
                                                 "default": false
                                             },
+                                            "showSearchButton": {
+                                                "type": "boolean",
+                                                "description": "Show search button or not.",
+                                                "default": true
+                                            },
                                             "showToggleMuteButton": {
                                                 "type": "boolean",
                                                 "description": "Show button for toggle mute state or not.",
@@ -172,7 +182,12 @@
                                             "password": {
                                                 "type": "string",
                                                 "description": "The password for the (Lua) HTTP service."
-                                            }
+                                            },
+                                            "showAllPlaylists": {
+                                                "type": "boolean",
+                                                "description": "Show all playlists or the first one only.",
+                                                "default": false
+                                            },
                                         },
                                         "required": [
                                             "type"
@@ -225,6 +240,11 @@
                                                 "type": "boolean",
                                                 "description": "Show buttons on the RIGHT side or not.",
                                                 "default": false
+                                            },
+                                            "showSearchButton": {
+                                                "type": "boolean",
+                                                "description": "Show search button or not.",
+                                                "default": true
                                             },
                                             "showToggleMuteButton": {
                                                 "type": "boolean",

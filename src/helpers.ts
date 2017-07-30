@@ -22,6 +22,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 import * as ChildProcess from 'child_process';
+import * as Enumerable from 'node-enumerable';
 import * as HTTP from 'http';
 import * as Moment from 'moment';
 import * as Path from 'path';
@@ -161,6 +162,46 @@ export function createSimpleCompletedAction<TResult>(resolve: (value?: TResult |
             }
         }
     };
+}
+
+/**
+ * Removes duplicate entries from an array.
+ * 
+ * @param {T[]} arr The input array.
+ * 
+ * @return {T[]} The filtered array.
+ */
+export function distinctArray<T>(arr: T[]): T[] {
+    if (!arr) {
+        return arr;
+    }
+
+    return arr.filter((x, i) => {
+        return arr.indexOf(x) === i;
+    });
+}
+
+/**
+ * Checks if a search matches.
+ * 
+ * @param {string|string[]} parts The search parts.
+ * @param {string} searchIn The string to search in.
+ * 
+ * @return {boolean} Does match or not.
+ */
+export function doesSearchMatch(parts: string | string[], searchIn: string): boolean {
+    parts = asArray(parts).map(p => normalizeString(p));
+    parts = distinctArray(parts);
+
+    searchIn = normalizeString(searchIn);
+
+    if (parts.length < 1) {
+        return true;
+    }
+
+    return Enumerable.from(parts).all(p => {
+        return searchIn.indexOf(p) > -1;
+    });
 }
 
 /**
@@ -426,6 +467,24 @@ export function queryParamsToObject(query: string): { [name: string]: string } {
     }
 
     return params;
+}
+
+/**
+ * Replaces all occurrences of a string.
+ * 
+ * @param {any} str The input string.
+ * @param {any} searchValue The value to search for.
+ * @param {any} replaceValue The value to replace 'searchValue' with.
+ * 
+ * @return {string} The output string.
+ */
+export function replaceAllStrings(str: any, searchValue: any, replaceValue: any): string {
+    str = toStringSafe(str);
+    searchValue = toStringSafe(searchValue);
+    replaceValue = toStringSafe(replaceValue);
+
+    return str.split(searchValue)
+              .join(replaceValue);
 }
 
 /**

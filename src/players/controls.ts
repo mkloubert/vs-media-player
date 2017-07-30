@@ -23,6 +23,7 @@
 
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
+import * as mplayer_players_helpers from '../players/helpers';
 import * as mplayer_playlists from '../playlists';
 import * as vscode from 'vscode';
 
@@ -53,6 +54,10 @@ export class StatusBarController implements vscode.Disposable {
      * Stores the underlying configuration.
      */
     protected readonly _CONFIG: mplayer_contracts.PlayerConfig;
+    /**
+     * Stores the function that provides the extension context
+     */
+    protected readonly _CONTEXT_PROVIDER: () => vscode.ExtensionContext;
         /**
      * Stores the list of disposable items.
      */
@@ -65,10 +70,13 @@ export class StatusBarController implements vscode.Disposable {
     /**
      * Initializes a new instance of that class.
      * 
+     * @param {Function} contextProvider The function that provides the extension context.
      * @param {mplayer_contracts.MediaPlayer} player The underlying player.
      * @param {mplayer_contracts.PlayerConfig} cfg The underlying configuration.
      */
-    constructor(player: mplayer_contracts.MediaPlayer, cfg: mplayer_contracts.PlayerConfig) {
+    constructor(contextProvider: () => vscode.ExtensionContext,
+                player: mplayer_contracts.MediaPlayer, cfg: mplayer_contracts.PlayerConfig) {
+        this._CONTEXT_PROVIDER = contextProvider;
         this._CONFIG = cfg;
         this._PLAYER = player;
     }
@@ -78,6 +86,13 @@ export class StatusBarController implements vscode.Disposable {
      */
     public get config(): mplayer_contracts.PlayerConfig {
         return this._CONFIG;
+    }
+
+    /**
+     * Gets the underlying extension context.
+     */
+    public get context(): vscode.ExtensionContext {
+        return this._CONTEXT_PROVIDER();
     }
     
     /** @inheritdoc */
@@ -123,7 +138,7 @@ export class StatusBarController implements vscode.Disposable {
                 buttonOffset = 10;
             }
 
-            const MAX_BUTTON_COUNT = 11;
+            const MAX_BUTTON_COUNT = 12;
             const GET_PRIORITY = (offset: number): number => {
                 let playerId = parseInt( mplayer_helpers.toStringSafe(ME.player.id).trim() );
                 if (isNaN(playerId)) {
@@ -376,7 +391,33 @@ export class StatusBarController implements vscode.Disposable {
                 SET_BUTTON_VISIBILITY(trackButton, mplayer_helpers.toBooleanSafe( ME.config.showTrackSelectorButton, true ));
             }
 
-            // [7] toggle mute
+            // [7] search track
+            const CMD_SEARCH_TRACK = `${COMMAND_PREFIX}searchTrack`;
+            {
+                let btn: vscode.StatusBarItem;
+
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_SEARCH_TRACK, async () => {
+                    try {
+                        btn.command = undefined;
+
+                        await mplayer_players_helpers.searchTrack(ME.player, ME.context);
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(searchTrack): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                    finally {
+                        btn.command = CMD_SEARCH_TRACK;
+                    }
+                }));
+
+                NEW_ITEMS.push(btn = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(7)));
+                btn.text = '$(search)';
+                btn.tooltip = 'Search for a track...';
+                btn.command = CMD_SEARCH_TRACK;
+                SET_BUTTON_VISIBILITY(btn, mplayer_helpers.toBooleanSafe( ME.config.showSearchButton, true ));
+            }
+
+            // [8] toggle mute
             let toggleMuteButton: vscode.StatusBarItem;
             const CMD_TOGGLE_MUTE = `${COMMAND_PREFIX}toggleMute`;
             {
@@ -418,13 +459,13 @@ export class StatusBarController implements vscode.Disposable {
                     });
                 }));
 
-                NEW_ITEMS.push(toggleMuteButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(7)));
+                NEW_ITEMS.push(toggleMuteButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
                 toggleMuteButton.command = CMD_TOGGLE_MUTE;
                 toggleMuteButton.text = '';
                 SET_BUTTON_VISIBILITY(toggleMuteButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleMuteButton, true ));
             }
 
-            // [8] toogle repeating
+            // [9] toogle repeating
             let toggleRepeatingButton: vscode.StatusBarItem;
             const CMD_TOGGLE_REPEATING = `${COMMAND_PREFIX}toggleRepeating`;
             {
@@ -445,13 +486,13 @@ export class StatusBarController implements vscode.Disposable {
                     });
                 }));
 
-                NEW_ITEMS.push(toggleRepeatingButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
+                NEW_ITEMS.push(toggleRepeatingButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(9)));
                 toggleRepeatingButton.text = '';
                 toggleRepeatingButton.command = CMD_TOGGLE_REPEATING;
                 SET_BUTTON_VISIBILITY(toggleRepeatingButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleRepeatingButton ));
             }
 
-            // [9] toogle shuffle
+            // [10] toogle shuffle
             let toggleShuffleButton: vscode.StatusBarItem;
             const CMD_TOGGLE_SHUFFLE = `${COMMAND_PREFIX}toggleShuffle`;
             {
@@ -472,16 +513,16 @@ export class StatusBarController implements vscode.Disposable {
                     });
                 }));
 
-                NEW_ITEMS.push(toggleShuffleButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(9)));
+                NEW_ITEMS.push(toggleShuffleButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(10)));
                 toggleShuffleButton.text = '';
                 toggleShuffleButton.command = CMD_TOGGLE_SHUFFLE;
                 SET_BUTTON_VISIBILITY(toggleShuffleButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleShuffleButton ));
             }
 
-            // [10] info button
+            // [11] info button
             let infoButton: vscode.StatusBarItem;
             {
-                NEW_ITEMS.push(infoButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(10)));
+                NEW_ITEMS.push(infoButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(11)));
                 infoButton.text = '';
                 infoButton.hide();
             }

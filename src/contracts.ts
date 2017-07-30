@@ -36,11 +36,11 @@ export interface ActionQuickPickItem extends vscode.QuickPickItem {
      * 
      * @return {any} The result.
      */
-    action?: (state: any, item: ActionQuickPickItem) => any;
+    readonly action?: (state: any, item: ActionQuickPickItem) => any;
     /**
      * The value for the 1st argument of the action.
      */
-    state?: any;
+    readonly state?: any;
 }
 
 /**
@@ -162,6 +162,14 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly prev: () => PromiseLike<boolean>;
     /**
+     * Searches for tracks.
+     * 
+     * @param {string} [expr] The search expression.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly searchTracks: (expr?: string) => PromiseLike<TrackSearchResult>;
+    /**
      * Sets the volume of the player.
      * 
      * @param {number} newValue The new value (0 = 0%, 1.0 = 100%)
@@ -268,6 +276,10 @@ export interface PlayerConfig {
      * Show buttons on the RIGHT side or not.
      */
     readonly showRight?: boolean;
+    /**
+     * Show search button or not.
+     */
+    readonly showSearchButton?: boolean;
     /**
      * Show button for toggle mute state or not.
      */
@@ -483,6 +495,16 @@ export interface Track {
 }
 
 /**
+ * A search result for a track search.
+ */
+export interface TrackSearchResult {
+    /**
+     * The tracks.
+     */
+    readonly tracks: Track[];
+}
+
+/**
  * A VLC player config entry.
  */
 export interface VLCPlayerConfig extends PlayerConfig {
@@ -498,6 +520,10 @@ export interface VLCPlayerConfig extends PlayerConfig {
      * The TCP port of the HTTP service.
      */
     readonly port?: number;
+    /**
+     * Show all playlists or the first one only.
+     */
+    readonly showAllPlaylists?: boolean;
     /** @inheritdoc */
     readonly type: "vlc";
 }

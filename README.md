@@ -96,13 +96,15 @@ A player entry supports the following, common properties:
 
 | Feature | Supported by [spotilocal](https://www.npmjs.com/package/spotilocal) | Supported by [Web API](#web-api-) |
 | ---- |:--:|:--:|
-| Load playlists and/or select a track | &nbsp; | X |
+| Load playlists | &nbsp; | X |
 | Mute volume |  | X |
 | Mute volume |  | X |
 | Pause | X | X |
 | Play | X | X |
 | Play next track |  | X |
 | Play previous track |  | X |
+| Play track |  | X |
+| Search for tracks |  | X |
 | Toggle repeating | (only state is displayed) | X |
 | Toggle shuffle | (only state is displayed) | X |
 | Volume down |  | X |
@@ -222,6 +224,7 @@ An entry supports the following, additional settings:
 | `host` | The host of the (Lua) HTTP service. Default `localhost` |
 | `password` | The password for the (Lua) HTTP service. |
 | `port` | The TCP port of the (Lua) HTTP service. Default `8080` |
+| `showAllPlaylists` | Show all playlists or the first one only. Default `(false)` |
 
 ### Commands [[&uarr;](#how-to-use-)]
 

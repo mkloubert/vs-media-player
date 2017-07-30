@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Enumerable from 'node-enumerable';
 import * as Events from 'events';
 import * as HTTP from 'http';
 import * as mplayer_contracts from '../contracts';
@@ -390,34 +391,12 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
         return this._CONTEXT;
     }
 
-    /** @inheritdoc */
-    public getDevices(): Promise<mplayer_contracts.Device[]> {
-        const ME = this;
-
-        return new Promise<mplayer_contracts.Device[]>((resolve, reject) => {
-            const COMPLETED = ME.createCompletedAction(resolve, reject);
-
-            try {
-                const DEFAULT_DATA = mplayer_players_helpers.getDefaultOutputData(ME.config);
-
-                COMPLETED(null, [
-                    {
-                        id: DEFAULT_DATA.id,
-                        isActive: true,
-                        name: DEFAULT_DATA.name,
-                        player: ME,
-                        select: () => Promise.resolve(true),
-                    }
-                ]);
-            }
-            catch (e) {
-                COMPLETED(e);
-            }
-        });
-    }
-
-    /** @inheritdoc */
-    public getPlaylists() {
+    /**
+     * Returns the list of all playlists.
+     * 
+     * @returns {mplayer_contracts.Playlist[]} The list of playlists.
+     */
+    public getAllPlaylists() {
         const ME = this;
 
         return new Promise<mplayer_contracts.Playlist[]>((resolve, reject) => {
@@ -460,17 +439,12 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                             else {
                                                 try {
                                                     const PLAYLISTS: mplayer_contracts.Playlist[] = [];
-                                                    let firstPlaylist: mplayer_contracts.Playlist;
 
                                                     if (xml['node']) {
                                                         mplayer_helpers.asArray(xml['node']).filter(r => r).forEach(r => {
                                                             const NODES = mplayer_helpers.asArray(r['node']);
 
                                                             NODES.filter(x => x).forEach(n => {
-                                                                if (firstPlaylist) {
-                                                                    return;
-                                                                }
-
                                                                 let id: any;
                                                                 let name: string;
                                                                 if (n['$']) {
@@ -478,19 +452,18 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                                     name = mplayer_helpers.toStringSafe(n['$']['name']);
                                                                 }
 
-                                                                firstPlaylist = {
+                                                                const NEW_PLAYLIST: mplayer_contracts.Playlist = {
                                                                     getTracks: undefined,
                                                                     id: id,
                                                                     name: name,
                                                                     player: ME,
                                                                 };
-                                                                (<any>firstPlaylist)['getTracks'] = ME.createTrackListProvider(firstPlaylist);
+
+                                                                (<any>NEW_PLAYLIST)['getTracks'] = ME.createTrackListProvider(NEW_PLAYLIST);
+
+                                                                PLAYLISTS.push(NEW_PLAYLIST);
                                                             });
                                                         });
-                                                    }
-
-                                                    if (firstPlaylist) {
-                                                        PLAYLISTS.push(firstPlaylist);
                                                     }
 
                                                     COMPLETED(null, PLAYLISTS);
@@ -525,6 +498,50 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                 COMPLETED(e);
             }
         });
+    }
+
+    /** @inheritdoc */
+    public getDevices(): Promise<mplayer_contracts.Device[]> {
+        const ME = this;
+
+        return new Promise<mplayer_contracts.Device[]>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const DEFAULT_DATA = mplayer_players_helpers.getDefaultOutputData(ME.config);
+
+                COMPLETED(null, [
+                    {
+                        id: DEFAULT_DATA.id,
+                        isActive: true,
+                        name: DEFAULT_DATA.name,
+                        player: ME,
+                        select: () => Promise.resolve(true),
+                    }
+                ]);
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public async getPlaylists() {
+        const ALL_PLAYLISTS = await this.getAllPlaylists();
+
+        let playlists: mplayer_contracts.Playlist[] = [];
+
+        if (!mplayer_helpers.toBooleanSafe(this.config.showAllPlaylists)) {
+            if (ALL_PLAYLISTS && ALL_PLAYLISTS.length > 0) {
+                playlists.push( ALL_PLAYLISTS[0] );
+            }
+        }
+        else {
+            playlists = playlists.concat( ALL_PLAYLISTS || [] );
+        }
+
+        return playlists.filter(pl => pl);
     }
 
     /** @inheritdoc */
@@ -663,7 +680,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                         mplayer_helpers.asArray(xml['root']['currentplid']).forEach(x => {
                                                             WF.next((ctx) => {
                                                                 return new Promise<any>((res, rej) => {
-                                                                    ME.getPlaylists().then((playlists: mplayer_contracts.Playlist[]) => {
+                                                                    ME.getAllPlaylists().then((playlists: mplayer_contracts.Playlist[]) => {
                                                                         res(playlists);
                                                                     }, (err) => {
                                                                         rej(err);
@@ -968,6 +985,54 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                 catch (e) {
                     COMPLETED(e);
                 }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public searchTracks(expr?: string): Promise<mplayer_contracts.TrackSearchResult> {
+        expr = mplayer_helpers.toStringSafe(expr);
+        expr = mplayer_helpers.replaceAllStrings(expr, "\n", '');
+        expr = mplayer_helpers.replaceAllStrings(expr, "\r", '');
+        expr = mplayer_helpers.replaceAllStrings(expr, "\t", '    ');
+
+        const SEARCH_PARTS = Enumerable.from(mplayer_helpers.toStringSafe(expr).split(' ')).select(x => {
+            return mplayer_helpers.normalizeString(x);
+        }).where(x => {
+            return '' !== x;
+        }).distinct()
+          .toArray();
+
+        const ME = this;
+
+        return new Promise<mplayer_contracts.TrackSearchResult>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const PLAYLISTS: mplayer_contracts.Playlist[] =
+                    Enumerable.from( await ME.getAllPlaylists() )
+                              .toArray();
+
+                const MATCHING_TRACKS: mplayer_contracts.Track[] = [];
+
+                for (let i = 0; i < PLAYLISTS.length; i++) {
+                    const PL = PLAYLISTS[i];
+
+                    const TRACKS = ((await PL.getTracks()) || []).filter(t => t);
+                    for (let j = 0; j < TRACKS.length; j++) {
+                        const TR = TRACKS[j];
+                        if (mplayer_helpers.doesSearchMatch(SEARCH_PARTS, TR.name)) {
+                            MATCHING_TRACKS.push(TR);
+                        }
+                    }
+                }
+
+                COMPLETED(null, {
+                    tracks: MATCHING_TRACKS,
+                });
             }
             catch (e) {
                 COMPLETED(e);

@@ -49,6 +49,14 @@ export interface DefaultOutputData {
     readonly name: string;
 }
 
+interface TrackSearchExpressionRepository {
+    [id: number]: string;
+}
+
+
+const KEY_TRACK_SEARCH_EXPR_REPO = 'vscMediaPlayerTrackSearchExpressionRepository';
+
+
 /**
  * Connects to a player.
  * 
@@ -67,6 +75,7 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
 
     let result: ConnectToResult;
 
+    const CONTEXT_PROVIDER = () => context;
     const TYPE = mplayer_helpers.normalizeString(cfg.type);
 
     let player: mplayer_contracts.MediaPlayer;
@@ -90,14 +99,16 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
         if (!mplayer_helpers.toBooleanSafe(player.isConnected)) {
             const HAS_CONNECTED = mplayer_helpers.toBooleanSafe( await player.connect() );
             if (HAS_CONNECTED) {
-                result = new mplayer_players_controls.StatusBarController(player, cfg);
+                result = new mplayer_players_controls.StatusBarController(CONTEXT_PROVIDER,
+                                                                          player, cfg);
             }
             else {
                 result = false;
             }
         }
         else {
-            result = new mplayer_players_controls.StatusBarController(player, cfg);
+            result = new mplayer_players_controls.StatusBarController(CONTEXT_PROVIDER,
+                                                                      player, cfg);
         }
     }
 
@@ -187,4 +198,146 @@ export function getDefaultOutputData(cfg?: mplayer_contracts.PlayerConfig): Defa
     }
 
     return RESULT;
+}
+
+function getLastTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
+                                      context: vscode.ExtensionContext): string {
+    const REPO = getTrackSearchExpressionRepository(context);
+
+    return REPO[player.id];
+}
+
+function getTrackSearchExpressionRepository(context: vscode.ExtensionContext): TrackSearchExpressionRepository {
+    return context.workspaceState.get<TrackSearchExpressionRepository>(KEY_TRACK_SEARCH_EXPR_REPO) ||
+           {};
+}
+
+function saveTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
+                                   context: vscode.ExtensionContext,
+                                   expr: string): boolean {
+    try {
+        expr = mplayer_helpers.toStringSafe(expr).trim();
+
+        const REPO = getTrackSearchExpressionRepository(context);
+        if ('' !== expr) {
+            REPO[player.id] = expr;
+        }
+        else {
+            delete REPO[player.id];
+        }
+
+        context.workspaceState.update(KEY_TRACK_SEARCH_EXPR_REPO, REPO).then(() => {
+        }, (err) => {
+            mplayer_helpers.log(`[ERROR] players.helpers.saveTrackSearchExpression(e): ${mplayer_helpers.toStringSafe(err)}`);
+        });
+
+        return true;
+    }
+    catch (e) {
+        mplayer_helpers.log(`[ERROR] players.helpers.saveTrackSearchExpression(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+        return false;
+    }
+}
+
+/**
+ * Searches for a track inside a player.
+ * 
+ * @param {mplayer_contracts.MediaPlayer} player The player.
+ * @param {vscode.ExtensionContext} context The extension context.
+ * 
+ * @return {Promise<boolean>} The promise that indicates if operation was successful or not.
+ */
+export function searchTrack(player: mplayer_contracts.MediaPlayer,
+                            context: vscode.ExtensionContext): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+        const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+        try {
+            const SEARCH_FOR = async (player: mplayer_contracts.MediaPlayer, expr: string) => {
+                try {
+                    const SEARCH = await player.searchTracks(expr);
+                    if (SEARCH && SEARCH.tracks && SEARCH.tracks.length > 0) {
+                        const TRACK_QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = SEARCH.tracks.filter(t => t).map((t, i) => {
+                            let label = mplayer_helpers.toStringSafe(t.name).trim();
+                            if ('' === label) {
+                                label = `Track #${i + 1}`;
+                            }
+
+                            const DESCRIPTION = mplayer_helpers.toStringSafe(t.description).trim();
+
+                            return {
+                                action: async (currentTrack: mplayer_contracts.Track) => {
+                                    await currentTrack.play();
+                                },
+                                label: '$(triangle-right)  ' + `${label}`,
+                                description: DESCRIPTION,
+                                state: t,
+                            };
+                        });
+
+                        const allQuickPicks: mplayer_contracts.ActionQuickPickItem[] =
+                            [].concat(TRACK_QUICK_PICKS);
+
+                        vscode.window.showQuickPick(allQuickPicks, {
+                            placeHolder: 'Select the track to play...',
+                        }).then(async (item) => {
+                            if (!item) {
+                                COMPLETED(null, false);
+                                return;
+                            }
+
+                            try {
+                                if (item.action) {
+                                    await Promise.resolve( item.action(item.state, item) );
+                                }
+
+                                COMPLETED(null, true);
+                            }
+                            catch (e) {
+                                COMPLETED(e);
+                            }
+                        }, (err) => {
+                            mplayer_helpers.log(`players.helpers.searchTrack(2): ${mplayer_helpers.toStringSafe(err)}`);
+
+                            COMPLETED(err);
+                        });
+                    }
+                    else {
+                        vscode.window.showWarningMessage('[vs-media-player] Nothing found!').then(() => {
+                        }, (err) => {
+                            mplayer_helpers.log(`players.helpers.searchTrack(1): ${mplayer_helpers.toStringSafe(err)}`);
+                        });
+
+                        COMPLETED(null, true);
+                    }
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
+
+            const LAST_EXPR = getLastTrackSearchExpression(player, context);
+
+            vscode.window.showInputBox({
+                placeHolder: 'Enter an expression to search for...',
+                value: mplayer_helpers.toStringSafe( LAST_EXPR ),
+            }).then(async (expr) => {
+                if (!mplayer_helpers.isEmptyString(expr)) {
+                    saveTrackSearchExpression(player, context,
+                                              expr);
+
+                    await SEARCH_FOR(player, expr);
+                }
+                else {
+                    COMPLETED(null, false);
+                }
+            }, (err) => {
+                COMPLETED(err);
+            });
+        }
+        catch (e) {
+            COMPLETED(e);
+        }
+    });
 }
