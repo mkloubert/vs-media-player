@@ -29,6 +29,48 @@ ext install vs-media-player
 
 ## How to use [[&uarr;](#table-of-contents)]
 
+Open (or create) a `settings.json` file in your `.vscode` subfolder of your workspace or edit your global settings by using `CTRL + ,` shortcut:
+
+Add a `media.player` section and define one or more players:
+
+```json
+{
+    "media.player": {
+        "players": [
+            {
+                "name": "My Spotify player",
+                "type": "spotify",
+            },
+
+            {
+                "name": "My VLC player",
+                "type": "vlc",
+            }
+        ]
+    }
+}
+```
+
+A player entry supported the following, common properties:
+
+| Name | Description |
+| ---- | --------- |
+| `buttonPriorityOffset` | A custom offset value for controling the priority of the buttons. Default `10` |
+| `connectOnStartup` | Connect on startup or not. Default `(true)` |
+| `description` | A description for the player. |
+| `name` | A (display) name for the player. |
+| `showNextButton` | Show button for playing NEXT track in status bar or not. Default `(true)` |
+| `showPlayerName` | Show player name in status bar or not. Default `(false)` |
+| `showPrevButton` | Show button for playing PREVIOUS track in status bar or not. Default `(true)` |
+| `showRight` | Show buttons on the RIGHT side of status bar or not. Default `(false)` |
+| `showToggleMuteButton` | Show button for toggle mute state in status bar or not. Default `(true)` |
+| `showTogglePlayButton` | Show button for toggle play state in status bar or not. Default `(true)` |
+| `showToggleRepeatingButton` | Show button for toggle repeating state in status bar or not. Default `(false)` |
+| `showToggleShuffleButton` | Show button for toggle shuffle state in status bar or not. Default `(false)` |
+| `showTrackSelectorButton` | Show button for selecting a track in status bar or not. Default `(true)` |
+| `showVolumeButtons` | Show buttons to change volume in status bar or not. Default `(false)` |
+| `type` | The type. |
+
 ### Spotify [[&uarr;](#how-to-use-)]
 
 ```json
@@ -109,6 +151,16 @@ Now copy all app data to your `media.player` settings in VS Code:
 }
 ```
 
+An entry supports the following, additional settings:
+
+A player entry supported the following, common properties:
+
+| Name | Description |
+| ---- | --------- |
+| `clientID` | The client ID of an own registered Spotify app. |
+| `clientSecret` | The client secret of an own registered Spotify app. |
+| `redirectURL` | The redirect URL for the authorization. |
+
 To start the authorization process, click on the following, yellow button in your status bar:
 
 <kbd>![Start Spotify OAuth](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify5.png)</kbd>
@@ -155,14 +207,23 @@ Now update your settings in VS Code:
 }
 ```
 
+An entry supports the following, additional settings:
+
+A player entry supported the following, common properties:
+
+| Name | Description |
+| ---- | --------- |
+| `host` | The host of the (Lua) HTTP service. Default `localhost` |
+| `connectOnStartup` | The TCP port of the (Lua) HTTP service. Default `8080` |
+
 ### Commands [[&uarr;](#how-to-use-)]
 
 Press `F1` to open the list of commands and enter one of the following commands:
 
 | Name | Description | ID | 
 | ---- | --------- | --------- | 
-| `Media Player: Connect` |  | `extension.mediaPlayer.connect` | 
-| `Media Player: Disconnect` |  | `extension.mediaPlayer.disconnect` | 
+| `Media Player: Connect` | Connects to a player. | `extension.mediaPlayer.connect` | 
+| `Media Player: Disconnect` | Disconnects from a player. | `extension.mediaPlayer.disconnect` | 
 | `Media Player: Execute player action` | Executes a player action | `extension.mediaPlayer.executePlayerAction` | 
-| `Media Player: Register app for Spotify` |  | `extension.mediaPlayer.registerApp` | 
-| `Media Player: Select item of playlist` |  | `extension.mediaPlayer.selectItemOfPlaylist` | 
+| `Media Player: Register app for Spotify` | Opens the web page where a new app can be registrated. | `extension.mediaPlayer.registerApp` | 
+| `Media Player: Select item of playlist` | Selects an item of a playlist. | `extension.mediaPlayer.selectItemOfPlaylist` | 
