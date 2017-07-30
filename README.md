@@ -67,7 +67,7 @@ After you have added the app, you need to select and edit it (`My Application` o
 
 ![Edit registrated app](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify2.png)
 
-Define a redirect URI that does really exist and can delegated to the PC where your VS Code is running. So keep sure, that your firewall will NOT block the TCP port, you have specified in your redirect URI.
+Define a redirect URI that does really exist and can delegate to the PC, where your VS Code is running. So keep sure, that your firewall will NOT block the TCP port, you have specified in your redirect URI.
 
 What happens is, that, when you start authorizing, your browser is open with a Spotify address, where you are asked, if your account wants to be connected with the app, you have registered:
 
@@ -86,6 +86,8 @@ At the same time a HTTP server is started, which will wait for Spotify, which wi
 Spotify will send an OAuth code to that server, that makes it possible to extend the feature list with the help of [Web API](https://developer.spotify.com/web-api/):
 
 ![OAuth code received from Spotify](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify4.png)
+
+Now copy all app data to your `media.player` settings in VS Code:
 
 ```json
 {
