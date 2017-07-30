@@ -126,7 +126,7 @@ The extension will request for the following [scopes / permissions](https://deve
 * `user-library-read`
 * `user-read-playback-state`
 
-At the same time a HTTP server is started from VS Code on your local machine, that will wait for Spotify, which will connects to that server, when you click on `OK`.
+At the same time a HTTP server is started from VS Code on your local machine, that will wait for Spotify, which will connect to that server, when you click on `OK`.
 
 Spotify will send an OAuth code to that server, that makes it possible to extend the feature list with the help of [Web API](https://developer.spotify.com/web-api/):
 
