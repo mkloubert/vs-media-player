@@ -45,7 +45,7 @@ ext install vs-media-player
 
 | Feature | Supported by [spotilocal](https://www.npmjs.com/package/spotilocal) | Supported by [Web API](#web-api-) |
 | ---- |:--:|:--:|
-| Load playlists | &nbsp; | X |
+| Load playlists and/or select a track | &nbsp; | X |
 | Mute volume |  | X |
 | Mute volume |  | X |
 | Pause | X | X |
