@@ -340,7 +340,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                         'playlist-read-collaborative',
                                                         'playlist-read-private',
                                                         'user-read-playback-state' ].join(' '));
-                url += "&show_dialog=" + encodeURIComponent('true');
+                // url += "&show_dialog=" + encodeURIComponent('true');
 
                 let port: number;
                 let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;

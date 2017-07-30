@@ -99,12 +99,16 @@ Now copy all app data to your `media.player` settings in VS Code:
 
                 "clientID": "<Client ID>",
                 "clientSecret": "<Client Secret>",
-                "redirectURL": "http://url-to-my-media-player-oauth-web-server.dyndns.org:12345"
+                "redirectURL": "<Redirect URI>"
             }
         ]
     }
 }
 ```
+
+To start the authorization process, click on the following, yellow button in your status bar:
+
+![Start Spotify OAuth](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify5.png)
 
 ### VLC [[&uarr;](#how-to-use-)]
 
