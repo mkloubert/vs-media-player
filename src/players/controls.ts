@@ -536,6 +536,8 @@ export class StatusBarController implements vscode.Disposable {
 
                 isUpdatingStatus = true;
                 try {
+                    let trackButtonColor = '#ffffff';
+                    let trackButtonText = '';
                     let toggleMuteColor = '#ffffff';
                     let toggleMuteText = '';
                     let toggleMuteTooltipText = '';
@@ -548,7 +550,6 @@ export class StatusBarController implements vscode.Disposable {
                     let toggleShuffleText = '$(git-branch)';
                     let toggleShuffleTooltipText = '';
                     let track: mplayer_contracts.Track;
-                    let trackButtonText = '';
 
                     const STATUS = await ME.player.getStatus();
                     if (STATUS) {
@@ -640,12 +641,18 @@ export class StatusBarController implements vscode.Disposable {
                     }
                     trackButtonToolTipText += "\n\n(click here to select another track)";
 
+                    if (mplayer_helpers.isEmptyString(trackButtonText)) {
+                        trackButtonText = '(unknown track)';
+                        trackButtonColor = '#d0d0d0';
+                    }
+
                     if (trackButtonText.length > 32) {
                         trackButtonText = trackButtonText.substr(0, 32) + '...';
                     }
 
                     UPDATE_BUTTON_TEXT(togglePlayButton, togglePlayText, togglePlayTooltipText);
-                    UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText);
+                    UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText,
+                                       trackButtonColor);
                     UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText,
                                        toggleMuteColor);
                     UPDATE_BUTTON_TEXT(toggleRepeatingButton, toggleRepeatingText, toggleRepeatingTooltipText,
