@@ -55,7 +55,7 @@ A player entry supported the following, common properties:
 
 | Name | Description |
 | ---- | --------- |
-| `buttonPriorityOffset` | A custom offset value for controling the priority of the buttons. Default `10` |
+| `buttonPriorityOffset` | A custom offset value for controling the priority of the buttons in the status bar. Default `10` |
 | `connectOnStartup` | Connect on startup or not. Default `(true)` |
 | `description` | A description for the player. |
 | `name` | A (display) name for the player. |
