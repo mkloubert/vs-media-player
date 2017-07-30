@@ -122,7 +122,7 @@ Show all settings and select the node `Interface >> Main interfaces` by activati
 
 <kbd>![VLC Setup Step 2](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/vlc2.png)</kbd>
 
-In the sub node `Lua` define a password in the `Lua HTTP` group (we will use mypassword here):
+In the sub node `Lua` define a password in the `Lua HTTP`:
 
 <kbd>![VLC Setup Step 3](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/vlc3.png)</kbd>
 
