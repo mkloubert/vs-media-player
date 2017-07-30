@@ -112,13 +112,40 @@ To start the authorization process, click on the following, yellow button in you
 
 ### VLC [[&uarr;](#how-to-use-)]
 
+To control your local [VLC player](https://www.videolan.org/vlc/), you have to activate [Lua HTTP service](https://wiki.videolan.org/VLC_HTTP_requests/).
+
+First select `Tools >> Preferences` in the main menu:
+
+<kbd>![VLC Setup Step 1](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/vlc1.png)</kbd>
+
+Show all settings and select the node `Interface >> Main interfaces` by activating `Web` in the `Extra interface modules` group:
+
+<kbd>![VLC Setup Step 2](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/vlc2.png)</kbd>
+
+In the sub node `Lua` define a password in the `Lua HTTP` group (we will use mypassword here):
+
+<kbd>![VLC Setup Step 3](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/vlc3.png)</kbd>
+
+Now save the settings and restart the application.
+
+By default the HTTP service runs on port 8080.
+
+If you already run a service at that port, you can change it by editing the `vlcrc` file, that contains the configuration. Search for the `http-port` value, change it (and uncomment if needed) for your needs (you also have to restart the player after that).
+
+Look at the [FAQ](https://www.videolan.org/support/faq.html) (search for `Where does VLC store its config file?`) to get information about where `vlcrc` is stored on your system.
+
+Now update your settings in VS Code:
+
 ```json
 {
     "media.player": {
         "players": [
             {
                 "name": "My VLC player",
-                "type": "vlc"
+                "type": "vlc",
+
+                "password": "myPassword",
+                "port": 8080
             }
         ]
     }
