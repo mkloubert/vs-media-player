@@ -236,7 +236,7 @@ Press `F1` to open the list of commands and enter one of the following commands:
 | `Media Player: Disconnect` | Disconnects from a player. | `extension.mediaPlayer.disconnect` | 
 | `Media Player: Execute player action` | Executes a player action | `extension.mediaPlayer.executePlayerAction` | 
 | `Media Player: Register app for Spotify` | Opens the web page where a new app can be registrated. | `extension.mediaPlayer.spotify.registerApp` | 
-| `Media Player: Search` | Search for a track inside a player. | `extension.mediaPlayer.search` | 
+| `Media Player: Search` | Search for a track or playlist inside a player. | `extension.mediaPlayer.search` | 
 | `Media Player: Select item of playlist` | Selects an item of a playlist. | `extension.mediaPlayer.selectItemOfPlaylist` | 
 | `Media Player: Select output` | Selects an output device for a player. | `extension.mediaPlayer.selectPlayerOutput` | 
 

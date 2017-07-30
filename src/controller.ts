@@ -588,6 +588,61 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
             try {
+                const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
+
+                QUICK_PICKS.push({
+                    label: '$(triangle-right)  Track',
+                    description: '',
+                    action: async () => {
+                        return await ME.searchTracks();
+                    }
+                });
+
+                QUICK_PICKS.push({
+                    label: '$(list-unordered)  Playlists',
+                    description: '',
+                    action: async () => {
+                        return await ME.searchPlaylists();
+                    }
+                });
+
+                vscode.window.showQuickPick(QUICK_PICKS, {
+                    placeHolder: 'Select the thing, you would like to search...',
+                }).then(async (item) => {
+                    if (!item) {
+                        COMPLETED(null, false);
+                        return;
+                    }
+
+                    try {
+                        COMPLETED(null,
+                                  await Promise.resolve( item.action(item.state, item) ));
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                }, (err) => {
+                    COMPLETED(err);
+                });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Search for playlists.
+     * 
+     * @return {Promise<boolean>} The promise that indicates if operation was successful or not.
+     */
+    protected searchPlaylists(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
                 const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
 
                 const PLAYER_QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
@@ -612,7 +667,88 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                 if (PLAYER_QUICK_PICKS.length < 1) {
                     vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
                     }, (err) => {
-                        ME.log(`MediaPlayerController.search(2): ${mplayer_helpers.toStringSafe(err)}`);
+                        ME.log(`MediaPlayerController.searchPlaylists(2): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const SEARCH = async (item: StatusBarControlsQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null, false);
+                        return;
+                    }
+
+                    try {
+                        COMPLETED(null,
+                                  await mplayer_players_helpers.searchPlaylists(item.controls.player,
+                                                                                ME.context));
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                if (PLAYER_QUICK_PICKS.length > 1) {
+                    vscode.window.showQuickPick(PLAYER_QUICK_PICKS, {
+                        placeHolder: 'Select the media player for your search...',
+                    }).then(async (item) => {
+                        await SEARCH(item);
+                    }, (err) => {
+                        COMPLETED(err);
+                    });
+                }
+                else {
+                    // the one and only
+                    await SEARCH(PLAYER_QUICK_PICKS[0]);
+                }
+            }
+            catch (e) {
+                ME.log(`MediaPlayerController.searchPlaylists(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Search for tracks.
+     * 
+     * @return {Promise<boolean>} The promise that indicates if operation was successful or not.
+     */
+    protected searchTracks(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
+
+                const PLAYER_QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
+                    let label = '';
+                    let description = '';
+                    if (c.player && c.player.config) {
+                        label = mplayer_helpers.toStringSafe(c.player.config.name).trim();
+                        description = mplayer_helpers.toStringSafe(c.player.config.description).trim();
+                    }
+
+                    if ('' === label) {
+                        label = `Player #${i + 1}`;
+                    }
+
+                    return {
+                        label: '$(unmute)  ' + label,
+                        controls: c,
+                        description: description,
+                    };
+                });
+
+                if (PLAYER_QUICK_PICKS.length < 1) {
+                    vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.searchTracks(2): ${mplayer_helpers.toStringSafe(err)}`);
                     });
 
                     COMPLETED(null);
@@ -650,7 +786,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                 }
             }
             catch (e) {
-                ME.log(`MediaPlayerController.search(1): ${mplayer_helpers.toStringSafe(e)}`);
+                ME.log(`MediaPlayerController.searchTracks(1): ${mplayer_helpers.toStringSafe(e)}`);
 
                 COMPLETED(e);
             }

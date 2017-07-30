@@ -53,6 +53,22 @@ interface WebAPIPlayerStatus {
     repeat_state?: string;
 }
 
+interface WebAPIPlaylistSearchResult {
+    playlists: {
+        items: WebAPIPlaylistSearchResultItem[];
+    };
+}
+
+interface WebAPIPlaylistSearchResultItem {
+    id: string;
+    name: string;
+    owner: {
+        id: string;
+        uri: string;
+    },
+    uri: string;
+}
+
 interface WebAPISettings {
     accessToken?: string;
     code?: string;
@@ -1156,6 +1172,45 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         });
     }
 
+    /**
+     * Get repeating type via Web API.
+     * 
+     * @returns {Promise<mplayer_contracts.RepeatType>} The promise with the type.
+     */
+    public getRepeatTypeFromAPI(): Promise<mplayer_contracts.RepeatType> {
+        const ME = this;
+
+        return new Promise<mplayer_contracts.RepeatType>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                let type: mplayer_contracts.RepeatType;
+
+                const STATUS = await ME.getPlayerStatusFromAPI();
+                if (STATUS) {
+                    switch (mplayer_helpers.normalizeString(STATUS.repeat_state)) {
+                        case 'context':
+                            type = mplayer_contracts.RepeatType.LoopAll;
+                            break;
+
+                        case 'off':
+                            type = null;
+                            break;
+
+                        case 'track':
+                            type = mplayer_contracts.RepeatType.RepeatCurrent;
+                            break;
+                    }
+                }
+
+                COMPLETED(null, type);
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
     /** @inheritdoc */
     public getStatus() {
         const ME = this;
@@ -1331,44 +1386,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         });
     }
 
-    /**
-     * Get repeating type via Web API.
-     * 
-     * @returns {Promise<mplayer_contracts.RepeatType>} The promise with the type.
-     */
-    public getRepeatTypeFromAPI(): Promise<mplayer_contracts.RepeatType> {
-        const ME = this;
-
-        return new Promise<mplayer_contracts.RepeatType>(async (resolve, reject) => {
-            const COMPLETED = ME.createCompletedAction(resolve, reject);
-
-            try {
-                let type: mplayer_contracts.RepeatType;
-
-                const STATUS = await ME.getPlayerStatusFromAPI();
-                if (STATUS) {
-                    switch (mplayer_helpers.normalizeString(STATUS.repeat_state)) {
-                        case 'context':
-                            type = mplayer_contracts.RepeatType.LoopAll;
-                            break;
-
-                        case 'off':
-                            type = null;
-                            break;
-
-                        case 'track':
-                            type = mplayer_contracts.RepeatType.RepeatCurrent;
-                            break;
-                    }
-                }
-
-                COMPLETED(null, type);
-            }
-            catch (e) {
-                COMPLETED(e);
-            }
-        });
-    }
 
     /** @inheritdoc */
     public get id(): number {
@@ -1643,15 +1660,114 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /** @inheritdoc */
+    public searchPlaylists(expr?: string): Promise<mplayer_contracts.PlaylistSearchResult> {
+        const ME = this;
+
+        const SEARCH_PARTS = mplayer_players_helpers.toSearchExpressionParts(expr);
+
+        return new Promise<mplayer_contracts.PlaylistSearchResult>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, {
+                        playlists: [],
+                    });
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
+
+            try {
+                const CLIENT = await ME.api.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            const OPTS: HTTP.RequestOptions = {
+                                headers: {
+                                    'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                },
+                                hostname: 'api.spotify.com',
+                                path: '/v1/search?q=' + encodeURIComponent( SEARCH_PARTS.join(' ') ) + 
+                                                '&type=' + encodeURIComponent('playlist') + 
+                                                '&limit=' + encodeURIComponent('25') + 
+                                                '&offset=' + encodeURIComponent('0'),
+                                method: 'GET',
+                            };
+
+                            const REQUEST = HTTPs.request(OPTS, async (resp) => {
+                                try {
+                                    switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                        case '200':
+                                            {
+                                                const SEARCH_RESULT: mplayer_contracts.PlaylistSearchResult = {
+                                                    playlists: [],
+                                                };
+
+                                                const BODY = await mplayer_helpers.getHttpBody(resp);
+                                                if (BODY) {
+                                                    const RESULT: WebAPIPlaylistSearchResult = JSON.parse( BODY.toString('utf8') );
+                                                    if (RESULT) {
+                                                        if (RESULT.playlists && RESULT.playlists.items) {
+                                                            RESULT.playlists.items.filter(pl => pl).forEach(pl => {
+                                                                let trackProvider: TrackListProvider = () => Promise.resolve([]);
+
+                                                                const NEW_PLAYLIST: mplayer_contracts.Playlist = {
+                                                                    id: mplayer_helpers.toStringSafe(pl.uri),
+                                                                    name: mplayer_helpers.toStringSafe(pl.name),
+                                                                    getTracks: undefined,
+                                                                    player: ME,
+                                                                };
+
+                                                                if (pl.owner) {
+                                                                    let user = mplayer_helpers.toStringSafe(pl.owner.id);
+
+                                                                    trackProvider = ME.createTrackListProvider(CLIENT,
+                                                                                                               user,
+                                                                                                               NEW_PLAYLIST);
+                                                                }
+
+                                                                (<any>NEW_PLAYLIST)['getTracks'] = trackProvider;
+
+                                                                SEARCH_RESULT.playlists.push(NEW_PLAYLIST);
+                                                            });
+                                                        }
+                                                    }
+                                                }
+
+                                                COMPLETED(null, SEARCH_RESULT);
+                                            }
+                                            break;
+
+                                        default:
+                                            COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                            break;
+                                    }
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            });
+
+                            REQUEST.end();
+                            return;
+                        }
+                    }  
+                }
+            }
+            catch (e) {}
+
+            FALLBACK();
+        });
+    }
+
+    /** @inheritdoc */
     public searchTracks(expr?: string): Promise<mplayer_contracts.TrackSearchResult> {
         const ME = this;
 
-        const SEARCH_PARTS = Enumerable.from(mplayer_helpers.toStringSafe(expr).split(' ')).select(x => {
-            return mplayer_helpers.normalizeString(x);
-        }).where(x => {
-            return '' !== x;
-        }).distinct()
-          .toArray();
+        const SEARCH_PARTS = mplayer_players_helpers.toSearchExpressionParts(expr);
 
         return new Promise<mplayer_contracts.TrackSearchResult>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);

@@ -162,6 +162,14 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly prev: () => PromiseLike<boolean>;
     /**
+     * Searches for playlists.
+     * 
+     * @param {string} [expr] The search expression.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly searchPlaylists: (expr?: string) => PromiseLike<PlaylistSearchResult>;
+    /**
      * Searches for tracks.
      * 
      * @param {string} [expr] The search expression.
@@ -400,6 +408,16 @@ export interface Playlist {
      * Gets the underlying player.
      */
     readonly player: MediaPlayer;
+}
+
+/**
+ * A search result for a playlist search.
+ */
+export interface PlaylistSearchResult {
+    /**
+     * The playlists.
+     */
+    readonly playlists: Playlist[];
 }
 
 /**

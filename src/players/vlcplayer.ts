@@ -993,20 +993,44 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     }
 
     /** @inheritdoc */
-    public searchTracks(expr?: string): Promise<mplayer_contracts.TrackSearchResult> {
-        expr = mplayer_helpers.toStringSafe(expr);
-        expr = mplayer_helpers.replaceAllStrings(expr, "\n", '');
-        expr = mplayer_helpers.replaceAllStrings(expr, "\r", '');
-        expr = mplayer_helpers.replaceAllStrings(expr, "\t", '    ');
-
-        const SEARCH_PARTS = Enumerable.from(mplayer_helpers.toStringSafe(expr).split(' ')).select(x => {
-            return mplayer_helpers.normalizeString(x);
-        }).where(x => {
-            return '' !== x;
-        }).distinct()
-          .toArray();
-
+    public searchPlaylists(expr?: string): Promise<mplayer_contracts.PlaylistSearchResult> {
         const ME = this;
+
+        const SEARCH_PARTS = mplayer_players_helpers.toSearchExpressionParts(expr);
+
+        return new Promise<mplayer_contracts.PlaylistSearchResult>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const PLAYLISTS: mplayer_contracts.Playlist[] =
+                    Enumerable.from( await ME.getAllPlaylists() )
+                              .toArray();
+
+                const MATCHING_PLAYLISTS: mplayer_contracts.Playlist[] = [];
+
+                for (let i = 0; i < PLAYLISTS.length; i++) {
+                    const PL = PLAYLISTS[i];
+
+                    if (mplayer_helpers.doesSearchMatch(SEARCH_PARTS, PL.name)) {
+                        MATCHING_PLAYLISTS.push(PL);
+                    }
+                }
+
+                COMPLETED(null, {
+                    playlists: MATCHING_PLAYLISTS,
+                });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public searchTracks(expr?: string): Promise<mplayer_contracts.TrackSearchResult> {
+        const ME = this;
+
+        const SEARCH_PARTS = mplayer_players_helpers.toSearchExpressionParts(expr);
 
         return new Promise<mplayer_contracts.TrackSearchResult>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);

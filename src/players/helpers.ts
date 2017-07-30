@@ -49,11 +49,16 @@ export interface DefaultOutputData {
     readonly name: string;
 }
 
+interface PlaylistSearchExpressionRepository {
+    [id: number]: string;
+}
+
 interface TrackSearchExpressionRepository {
     [id: number]: string;
 }
 
 
+const KEY_PLAYLIST_SEARCH_EXPR_REPO = 'vscMediaPlayerPlaylistSearchExpressionRepository';
 const KEY_TRACK_SEARCH_EXPR_REPO = 'vscMediaPlayerTrackSearchExpressionRepository';
 
 
@@ -200,6 +205,13 @@ export function getDefaultOutputData(cfg?: mplayer_contracts.PlayerConfig): Defa
     return RESULT;
 }
 
+function getLastPlaylistSearchExpression(player: mplayer_contracts.MediaPlayer,
+                                         context: vscode.ExtensionContext): string {
+    const REPO = getPlaylistSearchExpressionRepository(context);
+
+    return REPO[player.id];
+}
+
 function getLastTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
                                       context: vscode.ExtensionContext): string {
     const REPO = getTrackSearchExpressionRepository(context);
@@ -207,9 +219,42 @@ function getLastTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
     return REPO[player.id];
 }
 
+function getPlaylistSearchExpressionRepository(context: vscode.ExtensionContext): PlaylistSearchExpressionRepository {
+    return context.workspaceState.get<PlaylistSearchExpressionRepository>(KEY_PLAYLIST_SEARCH_EXPR_REPO) ||
+           {};
+}
+
 function getTrackSearchExpressionRepository(context: vscode.ExtensionContext): TrackSearchExpressionRepository {
     return context.workspaceState.get<TrackSearchExpressionRepository>(KEY_TRACK_SEARCH_EXPR_REPO) ||
            {};
+}
+
+function savePlaylistSearchExpression(player: mplayer_contracts.MediaPlayer,
+                                      context: vscode.ExtensionContext,
+                                      expr: string): boolean {
+    try {
+        expr = mplayer_helpers.toStringSafe(expr).trim();
+
+        const REPO = getPlaylistSearchExpressionRepository(context);
+        if ('' !== expr) {
+            REPO[player.id] = expr;
+        }
+        else {
+            delete REPO[player.id];
+        }
+
+        context.workspaceState.update(KEY_PLAYLIST_SEARCH_EXPR_REPO, REPO).then(() => {
+        }, (err) => {
+            mplayer_helpers.log(`[ERROR] players.helpers.savePlaylistSearchExpression(e): ${mplayer_helpers.toStringSafe(err)}`);
+        });
+
+        return true;
+    }
+    catch (e) {
+        mplayer_helpers.log(`[ERROR] players.helpers.savePlaylistSearchExpression(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+        return false;
+    }
 }
 
 function saveTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
@@ -238,6 +283,112 @@ function saveTrackSearchExpression(player: mplayer_contracts.MediaPlayer,
 
         return false;
     }
+}
+
+
+/**
+ * Searches for a playlist inside a player.
+ * 
+ * @param {mplayer_contracts.MediaPlayer} player The player.
+ * @param {vscode.ExtensionContext} context The extension context.
+ * 
+ * @return {Promise<boolean>} The promise that indicates if operation was successful or not.
+ */
+export function searchPlaylists(player: mplayer_contracts.MediaPlayer,
+                                context: vscode.ExtensionContext): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+        const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+        try {
+            const SEARCH_FOR = async (player: mplayer_contracts.MediaPlayer, expr: string) => {
+                try {
+                    const SEARCH = await player.searchPlaylists(expr);
+                    if (SEARCH && SEARCH.playlists && SEARCH.playlists.length > 0) {
+                        const TRACK_QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = SEARCH.playlists.filter(pl => pl).map((pl, i) => {
+                            let label = mplayer_helpers.toStringSafe(pl.name).trim();
+                            if ('' === label) {
+                                label = `Playlist #${i + 1}`;
+                            }
+
+                            const DESCRIPTION = mplayer_helpers.toStringSafe(pl.description).trim();
+
+                            return {
+                                action: async (currentList: mplayer_contracts.Playlist) => {
+                                    const TRACKS = ((await currentList.getTracks()) || []).filter(t => t);
+                                    if (TRACKS.length > 0) {
+                                        await TRACKS[0].play();
+                                    }
+                                },
+                                label: '$(list-unordered)  ' + `${label}`,
+                                description: DESCRIPTION,
+                                state: pl,
+                            };
+                        });
+
+                        const allQuickPicks: mplayer_contracts.ActionQuickPickItem[] =
+                            [].concat(TRACK_QUICK_PICKS);
+
+                        vscode.window.showQuickPick(allQuickPicks, {
+                            placeHolder: 'Select the playlist to start...',
+                        }).then(async (item) => {
+                            if (!item) {
+                                COMPLETED(null, false);
+                                return;
+                            }
+
+                            try {
+                                if (item.action) {
+                                    await Promise.resolve( item.action(item.state, item) );
+                                }
+
+                                COMPLETED(null, true);
+                            }
+                            catch (e) {
+                                COMPLETED(e);
+                            }
+                        }, (err) => {
+                            mplayer_helpers.log(`players.helpers.searchPlaylists(2): ${mplayer_helpers.toStringSafe(err)}`);
+
+                            COMPLETED(err);
+                        });
+                    }
+                    else {
+                        vscode.window.showWarningMessage('[vs-media-player] Nothing found!').then(() => {
+                        }, (err) => {
+                            mplayer_helpers.log(`players.helpers.searchPlaylists(1): ${mplayer_helpers.toStringSafe(err)}`);
+                        });
+
+                        COMPLETED(null, true);
+                    }
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
+
+            const LAST_EXPR = getLastPlaylistSearchExpression(player, context);
+
+            vscode.window.showInputBox({
+                placeHolder: 'Enter an expression to search for...',
+                value: mplayer_helpers.toStringSafe( LAST_EXPR ),
+            }).then(async (expr) => {
+                if (!mplayer_helpers.isEmptyString(expr)) {
+                    savePlaylistSearchExpression(player, context,
+                                                 expr);
+
+                    await SEARCH_FOR(player, expr);
+                }
+                else {
+                    COMPLETED(null, false);
+                }
+            }, (err) => {
+                COMPLETED(err);
+            });
+        }
+        catch (e) {
+            COMPLETED(e);
+        }
+    });
 }
 
 /**
@@ -340,4 +491,25 @@ export function searchTrack(player: mplayer_contracts.MediaPlayer,
             COMPLETED(e);
         }
     });
+}
+
+/**
+ * Extracts the parts of a search expression.
+ * 
+ * @param {string} [expr] The expression.
+ * 
+ * @return {string[]} The parts.
+ */
+export function toSearchExpressionParts(expr?: string): string[] {
+    expr = mplayer_helpers.toStringSafe(expr);
+    expr = mplayer_helpers.replaceAllStrings(expr, "\n", '');
+    expr = mplayer_helpers.replaceAllStrings(expr, "\r", '');
+    expr = mplayer_helpers.replaceAllStrings(expr, "\t", '    ');
+
+    return Enumerable.from(mplayer_helpers.toStringSafe(expr).split(' ')).select(x => {
+        return mplayer_helpers.normalizeString(x);
+    }).where(x => {
+        return '' !== x;
+    }).distinct()
+      .toArray();
 }
