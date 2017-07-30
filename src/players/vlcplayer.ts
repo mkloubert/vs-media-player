@@ -995,6 +995,55 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     }
 
     /** @inheritdoc */
+    public toggleRepeat(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                let cmd: string;
+
+                const STATUS = await ME.getStatus();
+                if (STATUS) {
+                    if (mplayer_helpers.isNullOrUndefined(STATUS.repeat)) {
+                        cmd = 'pl_loop';
+                    }
+                }
+
+                if (mplayer_helpers.isEmptyString(cmd)) {
+                    cmd = 'pl_repeat';
+                }
+
+                const OPTS = ME.createBasicRequestOptions();
+                OPTS.path = '/requests/status.xml?command=' + encodeURIComponent(cmd);
+
+                const REQUEST = HTTP.request(OPTS, (resp) => {
+                    try {
+                        switch (resp.statusCode) {
+                            case 200:
+                                COMPLETED(null, true);
+                                break;
+
+                            default:
+                                COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                break;
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                });
+
+                REQUEST.end();
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
     public toggleShuffle(): Promise<boolean> {
         const ME = this;
 

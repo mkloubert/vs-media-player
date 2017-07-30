@@ -136,6 +136,12 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly setVolume: (newValue: number) => PromiseLike<boolean>;
     /**
+     * Toggles repeat state.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly toggleRepeat: () => PromiseLike<boolean>;
+    /**
      * Toggles shuffle state.
      * 
      * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.

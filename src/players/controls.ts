@@ -384,9 +384,20 @@ export class StatusBarController implements vscode.Disposable {
 
             // [8] toogle repeating
             let toggleRepeatingButton: vscode.StatusBarItem;
+            const CMD_TOGGLE_REPEATING = `${COMMAND_PREFIX}toggleRepeating`;
             {
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_REPEATING, async () => {
+                    try {
+                        await ME.player.toggleRepeat();
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(toggleRepeating): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                }));
+
                 NEW_ITEMS.push(toggleRepeatingButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
                 toggleRepeatingButton.text = '';
+                toggleRepeatingButton.command = CMD_TOGGLE_REPEATING;
                 SET_BUTTON_VISIBILITY(toggleRepeatingButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleRepeatingButton ));
             }
 
@@ -402,7 +413,6 @@ export class StatusBarController implements vscode.Disposable {
                         mplayer_helpers.log(`[ERROR] StatusBarController(toggleShuffle): ${mplayer_helpers.toStringSafe(e)}`);
                     }
                 }));
-
 
                 NEW_ITEMS.push(toggleShuffleButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(9)));
                 toggleShuffleButton.text = '';
@@ -432,6 +442,7 @@ export class StatusBarController implements vscode.Disposable {
                     let toggleMuteTooltipText = '';
                     let togglePlayText = '---';
                     let togglePlayTooltipText = '';
+                    let toggleRepeatingColor = '';
                     let toggleRepeatingText = '';
                     let toggleRepeatingTooltipText = '';
                     let toggleShuffleColor = '';
@@ -490,13 +501,30 @@ export class StatusBarController implements vscode.Disposable {
                             toggleShuffleText = '$(git-branch)';
 
                             if (mplayer_helpers.toBooleanSafe(STATUS.isShuffle)) {
-                                toggleShuffleTooltipText = 'Click here to DEactivate';
+                                toggleShuffleTooltipText = 'Shuffle';
                                 toggleShuffleColor = '#ffffff';
                             }
                             else {
-                                toggleShuffleTooltipText = 'Click here to activate';
+                                toggleShuffleTooltipText = 'Click here to activate SHUFFLE';
                                 toggleShuffleColor = '#808080';
                             }
+                        }
+
+                        toggleRepeatingText = '$(sync)';
+                        toggleRepeatingColor = '#ffffff';
+                        toggleRepeatingTooltipText = 'Repeating PLAYLIST';
+
+                        if (!mplayer_helpers.isNullOrUndefined(STATUS.repeat)) {
+                            switch (STATUS.repeat) {
+                                case mplayer_contracts.RepeatType.RepeatCurrent:
+                                    toggleRepeatingColor = '#ff69b4';
+                                    toggleRepeatingTooltipText = 'Repeating TRACK';
+                                    break;
+                            }
+                        }
+                        else {
+                            toggleRepeatingColor = '#808080';
+                            toggleRepeatingTooltipText = 'No repeat';
                         }
                     }
 
@@ -521,7 +549,8 @@ export class StatusBarController implements vscode.Disposable {
                     UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText);
                     UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText,
                                        toggleMuteColor);
-                    UPDATE_BUTTON_TEXT(toggleRepeatingButton, toggleRepeatingText, toggleRepeatingTooltipText);
+                    UPDATE_BUTTON_TEXT(toggleRepeatingButton, toggleRepeatingText, toggleRepeatingTooltipText,
+                                       toggleRepeatingColor);
                     UPDATE_BUTTON_TEXT(toggleShuffleButton, toggleShuffleText, toggleShuffleTooltipText,
                                        toggleShuffleColor);
 

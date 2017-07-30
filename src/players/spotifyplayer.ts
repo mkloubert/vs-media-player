@@ -34,6 +34,10 @@ import * as URL from 'url';
 import * as vscode from 'vscode';
 
 
+interface WebAPIPlayerStatus {
+    repeat_state?: string;
+}
+
 interface WebAPISettings {
     accessToken?: string;
     code?: string;
@@ -334,7 +338,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 url += "&scope=" + encodeURIComponent([ 'user-library-read',
                                                         'streaming',
                                                         'playlist-read-collaborative',
-                                                        'playlist-read-private' ].join(' '));
+                                                        'playlist-read-private',
+                                                        'user-read-playback-state' ].join(' '));
                 // url += "&show_dialog=" + encodeURIComponent('true');
 
                 let port: number;
@@ -721,6 +726,82 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         });
     }
 
+    /**
+     * Get player status via Web API.
+     * 
+     * @returns {Promise<mplayer_contracts.RepeatType>} The promise with the status.
+     */
+    protected getPlayerStatusFromAPI(): Promise<WebAPIPlayerStatus> {
+        const ME = this;
+
+        return new Promise<WebAPIPlayerStatus>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const NOT_AVAILBLE = () => {
+                COMPLETED(null, null);
+            };
+
+            try {
+                const CLIENT = await ME.api.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            const OPTS: HTTP.RequestOptions = {
+                                headers: {
+                                    'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                },
+                                hostname: 'api.spotify.com',
+                                path: '/v1/me/player',
+                                method: 'GET',
+                            };
+
+                            const REQUEST = HTTPs.request(OPTS, async (resp) => {
+                                try {
+                                    switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                        case '200':
+                                            {
+                                                let status: WebAPIPlayerStatus;
+
+                                                const BODY = await mplayer_helpers.getHttpBody(resp);
+                                                if (BODY) {
+                                                    status = JSON.parse(BODY.toString('utf8'));
+                                                }
+
+                                                COMPLETED(null, status);
+                                            }
+                                            break;
+
+                                        default:
+                                            COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                            break;
+                                    }
+                                }
+                                catch (e) {
+                                    COMPLETED(e);
+                                }
+                            });
+
+                            REQUEST.end();
+                        }
+                        else {
+                            NOT_AVAILBLE();
+                        }
+                    }
+                    else {
+                        NOT_AVAILBLE();
+                    }
+                }
+                else {
+                    NOT_AVAILBLE();
+                }
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
     /** @inheritdoc */
     public getPlaylists() {
         const ME = this;
@@ -818,6 +899,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                         const BUTTON: mplayer_contracts.PlayerStatusInfoButton = {
                         };
 
+                        let repeat: mplayer_contracts.RepeatType;
+
                         const STATUS: mplayer_contracts.PlayerStatus = {
                             button: BUTTON,
                             isConnected: undefined,
@@ -825,9 +908,23 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                             player: ME,
                         };
 
-                        let repeat: mplayer_contracts.RepeatType;
-                        if (mplayer_helpers.toBooleanSafe(spotifyStatus.repeat)) {
-                            repeat = mplayer_contracts.RepeatType.Unknown;
+                        const FALLBACK_REPEAT_STATE = () => {
+                            if (mplayer_helpers.toBooleanSafe(spotifyStatus.repeat)) {
+                                repeat = mplayer_contracts.RepeatType.Unknown;
+                            }
+                        };
+
+                        try {
+                            const TYPE = await ME.getRepeatTypeFromAPI();
+                            if (!mplayer_helpers.isNullOrUndefined(TYPE)) {
+                                repeat = TYPE;
+                            }
+                            else {
+                                FALLBACK_REPEAT_STATE();
+                            }
+                        }
+                        catch (e) {
+                            FALLBACK_REPEAT_STATE();
                         }
 
                         let track: mplayer_contracts.Track;
@@ -957,6 +1054,45 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 }).catch((err) => {
                     COMPLETED(err);
                 });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Get repeating type via Web API.
+     * 
+     * @returns {Promise<mplayer_contracts.RepeatType>} The promise with the type.
+     */
+    public getRepeatTypeFromAPI(): Promise<mplayer_contracts.RepeatType> {
+        const ME = this;
+
+        return new Promise<mplayer_contracts.RepeatType>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                let type: mplayer_contracts.RepeatType;
+
+                const STATUS = await ME.getPlayerStatusFromAPI();
+                if (STATUS) {
+                    switch (mplayer_helpers.normalizeString(STATUS.repeat_state)) {
+                        case 'context':
+                            type = mplayer_contracts.RepeatType.LoopAll;
+                            break;
+
+                        case 'off':
+                            type = null;
+                            break;
+
+                        case 'track':
+                            type = mplayer_contracts.RepeatType.RepeatCurrent;
+                            break;
+                    }
+                }
+
+                COMPLETED(null, type);
             }
             catch (e) {
                 COMPLETED(e);
@@ -1330,6 +1466,118 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         });
     }
 
+    /** @inheritdoc */
+    public toggleRepeat(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                try {
+                    COMPLETED(null, false);
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            };
+
+            try {
+                let newState: string;
+
+                try {
+                    const STATUS = await ME.getStatus();
+                    if (STATUS) {
+                        if (mplayer_helpers.isNullOrUndefined(STATUS.repeat)) {
+                            newState = 'context';
+                        }
+                        else {
+                            switch (STATUS.repeat) {
+                                case mplayer_contracts.RepeatType.LoopAll:
+                                    newState = 'track';
+                                    break;
+
+                                case mplayer_contracts.RepeatType.RepeatCurrent:
+                                    newState = 'off';
+                                    break;
+                            }
+                        }
+                    }
+                }
+                catch (e) { }
+
+                if (mplayer_helpers.isEmptyString(newState)) {
+                    newState = 'off';
+                }
+
+                const CLIENT = await ME.api.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player/repeat?state=' + encodeURIComponent(newState),
+                                        method: 'PUT',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '204':
+                                                    COMPLETED(null, true);  // OK
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+
+                                                        FALLBACK();
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            FALLBACK();
+                                        }
+                                    });
+
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            }
+
+                            doRequest();
+                            return;
+                        }
+                    }  
+                }
+            }
+            catch (e) {}
+            
+            FALLBACK();
+        });
+    }
     
     /** @inheritdoc */
     public toggleShuffle(): Promise<boolean> {
