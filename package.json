@@ -2,7 +2,7 @@
     "name": "vs-media-player",
     "displayName": "Media Player",
     "description": "Extension to control media players like Spotify or VLC directly from the editor.",
-    "version": "0.16.1",
+    "version": "0.16.2",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.13.0"
@@ -72,7 +72,7 @@
                                             },
                                             "buttonPriorityOffset": {
                                                 "type": "integer",
-                                                "description": "A custom offset value for controling the priority of the buttons.",
+                                                "description": "A custom offset value for controlling the priority of the buttons.",
                                                 "default": 10
                                             },
                                             "connectOnStartup": {
