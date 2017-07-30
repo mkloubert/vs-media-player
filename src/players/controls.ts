@@ -123,7 +123,7 @@ export class StatusBarController implements vscode.Disposable {
                 buttonOffset = 10;
             }
 
-            const MAX_BUTTON_COUNT = 9;
+            const MAX_BUTTON_COUNT = 11;
             const GET_PRIORITY = (offset: number): number => {
                 let playerId = parseInt( mplayer_helpers.toStringSafe(ME.player.id).trim() );
                 if (isNaN(playerId)) {
@@ -382,10 +382,38 @@ export class StatusBarController implements vscode.Disposable {
                 SET_BUTTON_VISIBILITY(toggleMuteButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleMuteButton, true ));
             }
 
-            // [8] info button
+            // [8] toogle repeating
+            let toggleRepeatingButton: vscode.StatusBarItem;
+            {
+                NEW_ITEMS.push(toggleRepeatingButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
+                toggleRepeatingButton.text = '';
+                SET_BUTTON_VISIBILITY(toggleRepeatingButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleRepeatingButton ));
+            }
+
+            // [9] toogle shuffle
+            let toggleShuffleButton: vscode.StatusBarItem;
+            const CMD_TOGGLE_SHUFFLE = `${COMMAND_PREFIX}toggleShuffle`;
+            {
+                NEW_ITEMS.push(vscode.commands.registerCommand(CMD_TOGGLE_SHUFFLE, async () => {
+                    try {
+                        await ME.player.toggleShuffle();
+                    }
+                    catch (e) {
+                        mplayer_helpers.log(`[ERROR] StatusBarController(toggleShuffle): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+                }));
+
+
+                NEW_ITEMS.push(toggleShuffleButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(9)));
+                toggleShuffleButton.text = '';
+                toggleShuffleButton.command = CMD_TOGGLE_SHUFFLE;
+                SET_BUTTON_VISIBILITY(toggleShuffleButton, mplayer_helpers.toBooleanSafe( ME.config.showToggleShuffleButton ));
+            }
+
+            // [10] info button
             let infoButton: vscode.StatusBarItem;
             {
-                NEW_ITEMS.push(infoButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(8)));
+                NEW_ITEMS.push(infoButton = vscode.window.createStatusBarItem(alignment, GET_PRIORITY(10)));
                 infoButton.text = '';
                 infoButton.hide();
             }
@@ -404,6 +432,11 @@ export class StatusBarController implements vscode.Disposable {
                     let toggleMuteTooltipText = '';
                     let togglePlayText = '---';
                     let togglePlayTooltipText = '';
+                    let toggleRepeatingText = '';
+                    let toggleRepeatingTooltipText = '';
+                    let toggleShuffleColor = '';
+                    let toggleShuffleText = '$(git-branch)';
+                    let toggleShuffleTooltipText = '';
                     let track: mplayer_contracts.Track;
                     let trackButtonText = '';
 
@@ -442,6 +475,29 @@ export class StatusBarController implements vscode.Disposable {
                                 toggleMuteText = '$(unmute)';
                             }
                         }
+
+                        if (!mplayer_helpers.isNullOrUndefined(STATUS.repeat)) {
+                            switch (STATUS.repeat) {
+                                case mplayer_contracts.RepeatType.LoopAll:
+                                    break;
+
+                                case mplayer_contracts.RepeatType.RepeatCurrent:
+                                    break;
+                            }
+                        }
+
+                        if (!mplayer_helpers.isNullOrUndefined(STATUS.isShuffle)) {
+                            toggleShuffleText = '$(git-branch)';
+
+                            if (mplayer_helpers.toBooleanSafe(STATUS.isShuffle)) {
+                                toggleShuffleTooltipText = 'Click here to DEactivate';
+                                toggleShuffleColor = '#ffffff';
+                            }
+                            else {
+                                toggleShuffleTooltipText = 'Click here to activate';
+                                toggleShuffleColor = '#808080';
+                            }
+                        }
                     }
 
                     let trackButtonToolTipText = `Track: '${trackButtonText}'`;
@@ -465,6 +521,9 @@ export class StatusBarController implements vscode.Disposable {
                     UPDATE_BUTTON_TEXT(trackButton, trackButtonText, trackButtonToolTipText);
                     UPDATE_BUTTON_TEXT(toggleMuteButton, toggleMuteText, toggleMuteTooltipText,
                                        toggleMuteColor);
+                    UPDATE_BUTTON_TEXT(toggleRepeatingButton, toggleRepeatingText, toggleRepeatingTooltipText);
+                    UPDATE_BUTTON_TEXT(toggleShuffleButton, toggleShuffleText, toggleShuffleTooltipText,
+                                       toggleShuffleColor);
 
                     // info button
                     try {

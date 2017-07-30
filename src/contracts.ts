@@ -136,6 +136,12 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      */
     readonly setVolume: (newValue: number) => PromiseLike<boolean>;
     /**
+     * Toggles shuffle state.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly toggleShuffle: () => PromiseLike<boolean>;
+    /**
      * Decreases the volume.
      * 
      * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
@@ -219,6 +225,14 @@ export interface PlayerConfig {
      */
     readonly showTogglePlayButton?: boolean;
     /**
+     * Show button for toggle repeating state or not.
+     */
+    readonly showToggleRepeatingButton?: boolean;
+    /**
+     * Show button for toggle repeating state or not.
+     */
+    readonly showToggleShuffleButton?: boolean;
+    /**
      * Show button for selecting a track or not.
      */
     readonly showTrackSelectorButton?: boolean;
@@ -249,9 +263,17 @@ export interface PlayerStatus {
      */
     readonly isMute?: boolean;
     /**
+     * Gets if the player is in 'shuffle' state or not.
+     */
+    readonly isShuffle?: boolean;
+    /**
      * Gets the underlyong player.
      */
     readonly player: MediaPlayer;
+    /**
+     * Repeat type.
+     */
+    readonly repeat?: RepeatType;
     /**
      * The state.
      */
@@ -314,6 +336,24 @@ export interface Playlist {
      * Gets the underlying player.
      */
     readonly player: MediaPlayer;
+}
+
+/**
+ * Repeat types.
+ */
+export enum RepeatType {
+    /**
+     * Repeating, but undefined / unknown state
+     */
+    Unknown,
+    /**
+     * Loop playlist.
+     */
+    LoopAll = 1,
+    /**
+     * Repeat current
+     */
+    RepeatCurrent = 2,
 }
 
 /**

@@ -2,7 +2,7 @@
     "name": "vs-media-player",
     "displayName": "Media Player",
     "description": "Extension to control media players like Spotify or VLC directly from the editor.",
-    "version": "0.13.1",
+    "version": "0.14.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.13.0"
@@ -118,6 +118,16 @@
                                                 "description": "Show button for toggle play state or not.",
                                                 "default": true
                                             },
+                                            "showToggleRepeatingButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
+                                            },
+                                            "showToggleShuffleButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
+                                            },
                                             "showTrackSelectorButton": {
                                                 "type": "boolean",
                                                 "description": "Show button for selecting a track or not.",
@@ -203,6 +213,16 @@
                                                 "type": "boolean",
                                                 "description": "Show button for toggle play state or not.",
                                                 "default": true
+                                            },
+                                            "showToggleRepeatingButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
+                                            },
+                                            "showToggleShuffleButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
                                             },
                                             "showTrackSelectorButton": {
                                                 "type": "boolean",

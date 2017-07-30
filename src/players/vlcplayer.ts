@@ -526,6 +526,9 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                 COMPLETED(err);
                                             }
                                             else {
+                                                let isShuffle: boolean;
+                                                let repeat: mplayer_contracts.RepeatType;
+
                                                 const STATUS: mplayer_contracts.PlayerStatus = {
                                                     isConnected: undefined,
                                                     player: ME,
@@ -548,6 +551,22 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                         if (!isNaN(V)) {
                                                             return V <= 0.0;
                                                         }
+                                                    }
+                                                });
+
+                                                // STATUS.isShuffle
+                                                Object.defineProperty(STATUS, 'isShuffle', {
+                                                    enumerable: true,
+                                                    get: function() {
+                                                        return isShuffle;
+                                                    }
+                                                });
+
+                                                // STATUS.repeat
+                                                Object.defineProperty(STATUS, 'repeat', {
+                                                    enumerable: true,
+                                                    get: function() {
+                                                        return repeat;
                                                     }
                                                 });
 
@@ -584,6 +603,30 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                             vol = vol / 256.0;  // 256 => 100%
 
                                                             (<any>STATUS)['volume'] = vol;
+                                                        }
+                                                    });
+
+                                                    // random
+                                                    mplayer_helpers.asArray(xml['root']['random']).filter(x => x).forEach(x => {
+                                                        x = mplayer_helpers.normalizeString(x);
+                                                        if ('' !== x) {
+                                                            isShuffle = 'true' === x;
+                                                        }
+                                                    });
+
+                                                    // loop
+                                                    mplayer_helpers.asArray(xml['root']['loop']).filter(x => x).forEach(x => {
+                                                        x = mplayer_helpers.normalizeString(x);
+                                                        if ('true' === x) {
+                                                            repeat = mplayer_contracts.RepeatType.LoopAll;
+                                                        }
+                                                    });
+
+                                                    // repeat
+                                                    mplayer_helpers.asArray(xml['root']['repeat']).filter(x => x).forEach(x => {
+                                                        x = mplayer_helpers.normalizeString(x);
+                                                        if ('true' === x) {
+                                                            repeat = mplayer_contracts.RepeatType.RepeatCurrent;
                                                         }
                                                     });
 
@@ -922,33 +965,64 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
             try {
-                try {
-                    const OPTS = ME.createBasicRequestOptions();
-                    OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('volume') +
-                                                     '&val=' + encodeURIComponent( '' + newValue );
+                const OPTS = ME.createBasicRequestOptions();
+                OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('volume') +
+                                                '&val=' + encodeURIComponent( '' + newValue );
 
-                    const REQUEST = HTTP.request(OPTS, (resp) => {
-                        try {
-                            switch (resp.statusCode) {
-                                case 200:
-                                    COMPLETED(null, true);
-                                    break;
+                const REQUEST = HTTP.request(OPTS, (resp) => {
+                    try {
+                        switch (resp.statusCode) {
+                            case 200:
+                                COMPLETED(null, true);
+                                break;
 
-                                default:
-                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
-                                    break;
-                            }
+                            default:
+                                COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                break;
                         }
-                        catch (e) {
-                            COMPLETED(e);
-                        }
-                    });
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                });
 
-                    REQUEST.end();
-                }
-                catch (e) {
-                    COMPLETED(e);
-                }
+                REQUEST.end();
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public toggleShuffle(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const OPTS = ME.createBasicRequestOptions();
+                OPTS.path = '/requests/status.xml?command=' + encodeURIComponent('pl_random');
+
+                const REQUEST = HTTP.request(OPTS, (resp) => {
+                    try {
+                        switch (resp.statusCode) {
+                            case 200:
+                                COMPLETED(null, true);
+                                break;
+
+                            default:
+                                COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                break;
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                });
+
+                REQUEST.end();
             }
             catch (e) {
                 COMPLETED(e);
