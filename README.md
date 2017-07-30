@@ -158,8 +158,6 @@ Now copy all app data to your `media.player` settings in VS Code:
 
 An entry supports the following, additional settings:
 
-A player entry supported the following, common properties:
-
 | Name | Description |
 | ---- | --------- |
 | `clientID` | The client ID of an own registered Spotify app. |
@@ -215,8 +213,6 @@ Now update your settings in VS Code:
 In that example, you can open [localhost:8080/requests/status.xml](http://localhost:8080/requests/status.xml) to check your configuration. Use the password from the settings and leave the username field blank.
 
 An entry supports the following, additional settings:
-
-A player entry supported the following, common properties:
 
 | Name | Description |
 | ---- | --------- |
