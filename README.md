@@ -214,7 +214,7 @@ A player entry supported the following, common properties:
 | Name | Description |
 | ---- | --------- |
 | `host` | The host of the (Lua) HTTP service. Default `localhost` |
-| `connectOnStartup` | The TCP port of the (Lua) HTTP service. Default `8080` |
+| `port` | The TCP port of the (Lua) HTTP service. Default `8080` |
 
 ### Commands [[&uarr;](#how-to-use-)]
 
