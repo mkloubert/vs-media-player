@@ -207,6 +207,8 @@ Now update your settings in VS Code:
 }
 ```
 
+In that example, you can open [localhost:8080/requests/status.xml](http://localhost:8080/requests/status.xml) to check your configuration. Use the password from the settings and leave the username field blank.
+
 An entry supports the following, additional settings:
 
 A player entry supported the following, common properties:
