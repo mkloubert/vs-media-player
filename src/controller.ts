@@ -200,7 +200,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     const DESCRIPTION = mplayer_helpers.toStringSafe(c.description).trim();
                     
                     return {
-                        label: label,
+                        label: '$(unmute)  ' + label,
                         config: c,
                         description: DESCRIPTION,
                     };
@@ -262,7 +262,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     }
 
                     return {
-                        label: label,
+                        label: '$(unmute)  ' + label,
                         controls: c,
                         description: description,
                     };
@@ -632,7 +632,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                             const DESCRIPTION = mplayer_helpers.toStringSafe(t.description).trim();
 
                             return {
-                                label: label,
+                                label: '$(triangle-right)  ' + `[${i + 1}] ${label}`,
                                 description: DESCRIPTION,
                                 track: t,
                             };
@@ -681,13 +681,13 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                                     id = `#${i + 1}`;
                                 }
 
-                                label = `Player ${id}`;
+                                label = `Playlist ${id}`;
                             }
 
                             const DESCRIPTION = mplayer_helpers.toStringSafe(pl.description).trim();
                             
                             return {
-                                label: label,
+                                label: '$(list-unordered)  ' + label,
                                 description: DESCRIPTION,
                                 playlist: pl,
                             };
@@ -733,7 +733,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                     const DESCRIPTION = mplayer_helpers.toStringSafe(CFG.description).trim();
                     
                     return {
-                        label: label,
+                        label: '$(unmute)  ' + label,
                         description: DESCRIPTION,
                         player: PLAYER,
                     };

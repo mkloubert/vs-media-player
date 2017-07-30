@@ -82,7 +82,7 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer,
                             mplayer_helpers.log(`[ERROR] playlists.playTrack(5): ${mplayer_helpers.toStringSafe(e)}`);
                         }
                     },
-                    label: '$(list-unordered) ' + label,
+                    label: '$(list-unordered)  ' + label,
                     state: PL,
                 };
                 QUICK_PICKS.push(PL_ITEM);

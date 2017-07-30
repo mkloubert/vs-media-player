@@ -18,6 +18,7 @@
      * [Web API](#web-api-)
    * [VLC](#vlc-)
    * [Commands](#commands-)
+     * [Shortcuts](#shortcuts-)
 
 ## Install [[&uarr;](#table-of-contents)]
 
@@ -229,3 +230,7 @@ Press `F1` to open the list of commands and enter one of the following commands:
 | `Media Player: Execute player action` | Executes a player action | `extension.mediaPlayer.executePlayerAction` | 
 | `Media Player: Register app for Spotify` | Opens the web page where a new app can be registrated. | `extension.mediaPlayer.spotify.registerApp` | 
 | `Media Player: Select item of playlist` | Selects an item of a playlist. | `extension.mediaPlayer.selectItemOfPlaylist` | 
+
+#### Shortcuts [[&uarr;](#commands-)]
+
+If you want to define shortcuts / hotkeys for one or more of the upper [[commands](#commands-)], have a look at the VS Code article [Key Bindings for Visual Studio Code](https://code.visualstudio.com/docs/getstarted/keybindings).

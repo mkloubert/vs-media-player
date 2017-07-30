@@ -1,5 +1,5 @@
 # Change Log (vs-media-player)
 
-## [Unreleased]
+## 1.0.0 (July 30th, 2017)
 
-- Initial release
+* first stable release
