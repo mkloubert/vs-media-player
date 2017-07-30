@@ -28,6 +28,10 @@ Launch VS Code Quick Open (Ctrl+P), paste the following command, and press enter
 ext install vs-media-player
 ```
 
+Or search for things like `vs-media-player` in your editor:
+
+![Start Spotify OAuth](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/screenshot1.png)
+
 ## How to use [[&uarr;](#table-of-contents)]
 
 Open (or create) a `settings.json` file in your `.vscode` subfolder of your workspace or edit your global settings by using `CTRL + ,` shortcut:
