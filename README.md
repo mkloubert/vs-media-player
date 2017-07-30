@@ -56,7 +56,7 @@ Add a `media.player` section and define one or more players:
 }
 ```
 
-A player entry supported the following, common properties:
+A player entry supports the following, common properties:
 
 | Name | Description |
 | ---- | --------- |
