@@ -234,4 +234,4 @@ Press `F1` to open the list of commands and enter one of the following commands:
 
 #### Shortcuts [[&uarr;](#commands-)]
 
-If you want to define shortcuts / hotkeys for one or more of the upper [[commands](#commands-)], have a look at the VS Code article [Key Bindings for Visual Studio Code](https://code.visualstudio.com/docs/getstarted/keybindings).
+If you want to define shortcuts / hotkeys for one or more of the upper [commands](#commands-), have a look at the VS Code article [Key Bindings for Visual Studio Code](https://code.visualstudio.com/docs/getstarted/keybindings).
