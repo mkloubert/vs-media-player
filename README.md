@@ -113,7 +113,7 @@ First of all, you have to register an app [here](https://developer.spotify.com/m
 
 <kbd>![Register app in Spotify](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify1.png)</kbd>
 
-After you have added the app, you need to select and edit it (`My Application` on the upper left side):
+After you have added the app, you need to select and edit it (`My Applications` on the upper left side):
 
 <kbd>![Edit registrated app](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify2.png)</kbd>
 
