@@ -13,6 +13,7 @@
 1. [Install](#install-)
 2. [How to use](#how-to-use-)
    * [Spotify](#spotify-)
+     * [Web API](#web-api-)
    * [VLC](#vlc-)
 
 ## Install [[&uarr;](#table-of-contents)]
@@ -26,5 +27,36 @@ ext install vs-media-player
 ## How to use [[&uarr;](#table-of-contents)]
 
 ### Spotify [[&uarr;](#how-to-use-)]
+
+```json
+{
+    "media.player": {
+        "players": [
+            {
+                "name": "My Spotify player",
+                "type": "spotify"
+            }
+        ]
+    }
+}
+```
+
+| Feature | Supported by [spotilocal](https://www.npmjs.com/package/spotilocal) | Supported by [Web API](#web-api-) |
+| ---- | --------- | --------- |
+| Load playlists | &nbsp; | X |
+| Mute volume |  | X |
+| Mute volume |  | X |
+| Pause | X | X |
+| Play | X | X |
+| Play next track |  | X |
+| Play previous track |  | X |
+| Toggle repeating | (only state is displayed) | X |
+| Toggle shuffle | (only state is displayed) | X |
+| Volume down |  | X |
+| Volume up |  | X |
+
+To extend the basic features provided by [spotilocal](https://www.npmjs.com/package/spotilocal) module, take a look at the [Web API](#web-api-) second to get to known how to setup client for OAuth.
+
+#### Web API
 
 ### VLC [[&uarr;](#how-to-use-)]
