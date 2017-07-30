@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Enumerable from 'node-enumerable';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_controls from '../players/controls';
@@ -33,6 +34,20 @@ import * as vscode from 'vscode';
  * Results for a call of the 'connectTo' function.
  */
 export type ConnectToResult = mplayer_players_controls.StatusBarController | false;
+
+/**
+ * Default device data.
+ */
+export interface DefaultOutputData {
+    /**
+     * The ID.
+     */
+    readonly id: any;
+    /**
+     * The name.
+     */
+    readonly name: string;
+}
 
 /**
  * Connects to a player.
@@ -86,6 +101,26 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
         }
     }
 
+    if ('object' === typeof result) {
+        try {
+            // initial output device
+            const INITIAL_OUTPUT = mplayer_helpers.normalizeString(cfg.initialOutput);
+            if ('' !== INITIAL_OUTPUT) {
+                const DEVICES = await result.player.getDevices();
+                
+                Enumerable.from(DEVICES).where(d => {
+                    return INITIAL_OUTPUT === mplayer_helpers.normalizeString(d.name);
+                }).forEach(async (d) => {
+                    try {
+                        await d.select();
+                    }
+                    catch (e) {}
+                });
+            }
+        }
+        catch (e) {}
+    }
+
     return result;
 }
 
@@ -120,4 +155,36 @@ export function disposeControlsAndPlayer(controls: mplayer_players_controls.Stat
     }
 
     return false;
+}
+
+/**
+ * Returns the default settings for a device (from a config entry).
+ * 
+ * @param {mplayer_contracts.PlayerConfig} [cfg] The optional config entry.
+ * 
+ * @returns {DefaultOutputData} The default data.
+ */
+export function getDefaultOutputData(cfg?: mplayer_contracts.PlayerConfig): DefaultOutputData {
+    const RESULT = {
+        id: undefined,
+        name: undefined,  
+    };
+
+    if (cfg) {
+        RESULT.id = cfg.defaultOutputID;
+        RESULT.name = cfg.defaultOutputName;
+    }
+
+    if (mplayer_helpers.isNullOrUndefined(RESULT.id)) {
+        RESULT.id = 1;
+    }
+
+    if (mplayer_helpers.isNullOrUndefined(RESULT.name)) {
+        RESULT.name = 'Main device';
+    }
+    else {
+        RESULT.name = mplayer_helpers.toStringSafe(RESULT.name);
+    }
+
+    return RESULT;
 }

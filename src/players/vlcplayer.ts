@@ -25,6 +25,7 @@ import * as Events from 'events';
 import * as HTTP from 'http';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
+import * as mplayer_players_helpers from './helpers';
 import * as URL from 'url';
 import * as vscode from 'vscode';
 import * as Workflows from 'node-workflows';
@@ -387,6 +388,32 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     /** @inheritdoc */
     public get extension(): vscode.ExtensionContext {
         return this._CONTEXT;
+    }
+
+    /** @inheritdoc */
+    public getDevices(): Promise<mplayer_contracts.Device[]> {
+        const ME = this;
+
+        return new Promise<mplayer_contracts.Device[]>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const DEFAULT_DATA = mplayer_players_helpers.getDefaultOutputData(ME.config);
+
+                COMPLETED(null, [
+                    {
+                        id: DEFAULT_DATA.id,
+                        isActive: true,
+                        name: DEFAULT_DATA.name,
+                        player: ME,
+                        select: () => Promise.resolve(true),
+                    }
+                ]);
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
     }
 
     /** @inheritdoc */

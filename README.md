@@ -62,7 +62,10 @@ A player entry supports the following, common properties:
 | ---- | --------- |
 | `buttonPriorityOffset` | A custom offset value for controlling the priority of the buttons in the status bar. Default `10` |
 | `connectOnStartup` | Connect on startup or not. Default `(true)` |
+| `defaultOutputID` | The ID of the default output device. Default `1` |
+| `defaultOutputName` | The name of the default output device. Default `Main device` |
 | `description` | A description for the player. |
+| `initialOutput` | The name of the output device, which should be selected after extension has been connected to the player. |
 | `name` | A (display) name for the player. |
 | `showNextButton` | Show button for playing NEXT track in status bar or not. Default `(true)` |
 | `showPlayerName` | Show player name in status bar or not. Default `(false)` |
@@ -231,6 +234,7 @@ Press `F1` to open the list of commands and enter one of the following commands:
 | `Media Player: Execute player action` | Executes a player action | `extension.mediaPlayer.executePlayerAction` | 
 | `Media Player: Register app for Spotify` | Opens the web page where a new app can be registrated. | `extension.mediaPlayer.spotify.registerApp` | 
 | `Media Player: Select item of playlist` | Selects an item of a playlist. | `extension.mediaPlayer.selectItemOfPlaylist` | 
+| `Media Player: Select output` | Selects an output device for a player. | `extension.mediaPlayer.selectPlayerOutput` | 
 
 #### Shortcuts [[&uarr;](#commands-)]
 

@@ -2,7 +2,7 @@
     "name": "vs-media-player",
     "displayName": "Media Player",
     "description": "Extension to control media players like Spotify or VLC directly from the editor.",
-    "version": "1.0.6",
+    "version": "1.1.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.13.0"
@@ -37,6 +37,11 @@
             {
                 "command": "extension.mediaPlayer.executePlayerAction",
                 "title": "Execute player action",
+                "category": "Media Player"
+            },
+            {
+                "command": "extension.mediaPlayer.selectPlayerOutput",
+                "title": "Select output",
                 "category": "Media Player"
             },
             {
@@ -138,6 +143,20 @@
                                                 "description": "Show buttons to change volume or not.",
                                                 "default": false
                                             },
+                                            "initialOutput": {
+                                                "type": "string",
+                                                "description": "The name of the output device, which should be selected after extension has been connected to the player."
+                                            },
+                                            "defaultOutputName": {
+                                                "type": "string",
+                                                "description": "The name of the default output device.",
+                                                "default": "Main device"
+                                            },
+                                            "defaultOutputID": {
+                                                "description": "The ID of the default output device.",
+                                                "default": 1
+                                            },
+
                                             "host": {
                                                 "type": "string",
                                                 "description": "The host of the (Lua) HTTP service.",
@@ -159,7 +178,6 @@
                                             "type"
                                         ]
                                     },
-
                                     {
                                         "description": "A Spotify player.",
                                         "type": "object",
@@ -238,17 +256,18 @@
                                                 "description": "Show buttons to change volume or not.",
                                                 "default": false
                                             },
-                                            "host": {
+                                            "initialOutput": {
                                                 "type": "string",
-                                                "description": "The host of the (Lua) HTTP service.",
-                                                "default": "localhost"
+                                                "description": "The name of the output device, which should be selected after extension has been connected to the player."
                                             },
-                                            "port": {
-                                                "type": "integer",
-                                                "description": "The TCP port of the (Lua) HTTP service.",
-                                                "default": 8080,
-                                                "minimum": 0,
-                                                "maximum": 65535
+                                            "defaultOutputName": {
+                                                "type": "string",
+                                                "description": "The name of the default output device.",
+                                                "default": "Main device"
+                                            },
+                                            "defaultOutputID": {
+                                                "description": "The ID of the default output device.",
+                                                "default": 1
                                             },
 
                                             "clientID": {
@@ -304,6 +323,7 @@
     "readmeFilename": "README.md",
     "dependencies": {
         "moment": "^2.18.1",
+        "node-enumerable": "^2.0.1",
         "node-workflows": "^1.3.3",
         "spotify-web-api-node": "^2.4.0",
         "spotilocal": "^0.1.0",

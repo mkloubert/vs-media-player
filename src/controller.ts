@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Enumerable from 'node-enumerable';
 import * as Events from 'events';
 import * as HTTP from 'http';
 import * as HTTPs from 'https';
@@ -34,6 +35,10 @@ import * as URL from 'url';
 import * as vscode from 'vscode';
 import * as Workflows from 'node-workflows';
 
+
+interface DeviceQuickPickItem extends vscode.QuickPickItem {
+    readonly device: mplayer_contracts.Device;
+}
 
 interface PlayerConfigQuickPickItem extends vscode.QuickPickItem {
     readonly config: mplayer_contracts.PlayerConfig;
@@ -142,7 +147,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
             try {
-                const CONNECTED_PLAYERS = (this._connectedPlayers || []).filter(cp => cp);
+                const CONNECTED_PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
 
                 const PLAYERS = (ME.getPlayers() || []).filter(p => {
                     return CONNECTED_PLAYERS.map(cp => cp.player.id)
@@ -324,6 +329,8 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     /** @inheritdoc */
     public dispose() {
         try {
+            this.disposeOldPlayers();
+
             this.removeAllListeners();
         }
         catch (e) {
@@ -476,7 +483,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      * Is invoked when extension is going to be deactivated.
      */
     public onDeactivate() {
-        this.disposeOldPlayers();
+        this.dispose();
     }
 
     /**
@@ -755,6 +762,161 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
             }
             catch (e) {
                 ME.log(`MediaPlayerController.selectItemOfPlaylist(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Selects an output for a player.
+     * 
+     * @return {Promise<boolean>} The promise that indicates if operation was successful or not.
+     */
+    public selectPlayerOutput(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
+
+                const PLAYER_QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
+                    let label = '';
+                    let description = '';
+                    if (c.player && c.player.config) {
+                        label = mplayer_helpers.toStringSafe(c.player.config.name).trim();
+                        description = mplayer_helpers.toStringSafe(c.player.config.description).trim();
+                    }
+
+                    if ('' === label) {
+                        label = `Player #${i + 1}`;
+                    }
+
+                    return {
+                        label: '$(unmute)  ' + label,
+                        controls: c,
+                        description: description,
+                    };
+                });
+
+                if (PLAYER_QUICK_PICKS.length < 1) {
+                    vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.selectPlayerOutput(2): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const SELECT_OUTPUT = async (item: DeviceQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null, null);
+                        return;
+                    }
+
+                    try {
+                        const RESULT = mplayer_helpers.toBooleanSafe( await item.device.select(), true );
+                        const DEVICE_NAME = Enumerable.from( item.label.split(' ') )
+                                                      .skip(2)
+                                                      .joinToString(' ');
+
+                        if (RESULT) {
+                            vscode.window.showInformationMessage(`[vs-media-player] Changed output to '${DEVICE_NAME}'.`).then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.selectPlayerOutput(4): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+                        }
+                        else {
+                            vscode.window.showWarningMessage(`[vs-media-player] Could not change output to '${DEVICE_NAME}'!`).then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.selectPlayerOutput(5): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+                        }
+
+                        COMPLETED(null, RESULT);
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                const SELECT_DEVICE = async (item: StatusBarControlsQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null, null);
+                        return;
+                    }
+
+                    try {
+                        const DEVICES = await item.controls.player.getDevices();
+
+                        const DEVICE_QUICK_PICKS: DeviceQuickPickItem[] = Enumerable.from( DEVICES.map((d, i) => {
+                            let label = mplayer_helpers.toStringSafe(d.name).trim();
+                            if ('' === label) {
+                                label = `Device ${mplayer_helpers.toStringSafe(d.id)}`;
+                            }
+
+                            const DESCRIPTION = '';
+
+                            return {
+                                label: '$(megaphone)  ' + label,
+                                device: d,
+                                description: '',
+                                detail: !mplayer_helpers.toBooleanSafe(d.isActive) ? undefined : '(active)',
+                            };
+                        }) ).orderBy(d => {
+                            return !mplayer_helpers.toBooleanSafe(d.device.isActive) ? 0 : 1;
+                        }).thenBy((d) => {
+                            return mplayer_helpers.normalizeString(d.label);
+                        }).toArray();
+
+                        if (DEVICE_QUICK_PICKS.length > 0) {
+                            if (DEVICE_QUICK_PICKS.length > 1) {
+                                vscode.window.showQuickPick(DEVICE_QUICK_PICKS, {
+                                    placeHolder: 'Select the output device...',
+                                }).then(async (item) => {
+                                    await SELECT_OUTPUT(item);
+                                }, (err) => {
+                                    COMPLETED(err);
+                                });
+                            }
+                            else {
+                                // the one and only
+                                await SELECT_OUTPUT(DEVICE_QUICK_PICKS[0]);
+                            }
+                        }
+                        else {
+                            vscode.window.showWarningMessage('[vs-media-player] No devices found!').then(() => {
+                            }, (err) => {
+                                ME.log(`MediaPlayerController.selectPlayerOutput(3): ${mplayer_helpers.toStringSafe(err)}`);
+                            });
+
+                            COMPLETED(null, false);
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                if (PLAYER_QUICK_PICKS.length > 1) {
+                    vscode.window.showQuickPick(PLAYER_QUICK_PICKS, {
+                        placeHolder: 'Select the media player to connect to...',
+                    }).then(async (item) => {
+                        await SELECT_DEVICE(item);
+                    }, (err) => {
+                        COMPLETED(err);
+                    });
+                }
+                else {
+                    // the one and only
+                    await SELECT_DEVICE(PLAYER_QUICK_PICKS[0]);
+                }
+            }
+            catch (e) {
+                ME.log(`MediaPlayerController.selectPlayerOutput(1): ${mplayer_helpers.toStringSafe(e)}`);
 
                 COMPLETED(e);
             }

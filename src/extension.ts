@@ -90,6 +90,11 @@ export function activate(context: vscode.ExtensionContext) {
         });
     });
 
+    // open browser to register an app for Spotify
+    const CMD_SELECT_PLAYER_OUTPUT = vscode.commands.registerCommand('extension.mediaPlayer.selectPlayerOutput', async () => {
+        await controller.selectPlayerOutput();
+    });
+
     // notfiy setting changes
     context.subscriptions
            .push(vscode.workspace.onDidChangeConfiguration(controller.onDidChangeConfiguration, controller));
@@ -99,7 +104,8 @@ export function activate(context: vscode.ExtensionContext) {
            .push(CMD_CONNECT, CMD_DISCONNECT,
                  CMD_EXECUTE_PLAYER_ACTION,
                  CMD_SELECT_ITEM_OF_PLAYLIST,
-                 CMD_SPOTIFY_REGISTER_APP);
+                 CMD_SPOTIFY_REGISTER_APP,
+                 CMD_SELECT_PLAYER_OUTPUT);
 
     controller.onActivated();
     context.subscriptions

@@ -54,6 +54,34 @@ export interface Configuration extends vscode.WorkspaceConfiguration {
 }
 
 /**
+ * A device.
+ */
+export interface Device {
+    /**
+     * The ID of the device.
+     */
+    readonly id: any;
+    /**
+     * Device is active or not.
+     */
+    readonly isActive: boolean;
+    /**
+     * The (display) name.
+     */
+    readonly name?: string;
+    /**
+     * The underlying player.
+     */
+    readonly player: MediaPlayer;
+    /**
+     * Selects the device.
+     * 
+     * @return {PromiseLike<boolean>} The promise which indicates if operation was successful or not.
+     */
+    readonly select: () => PromiseLike<boolean>;
+}
+
+/**
  * A media player.
  */
 export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
@@ -73,6 +101,12 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
      * @type {PromiseLike<boolean>} The promise with the state that indicates if operation was successful or not.
      */
     readonly executeAction?: () => PromiseLike<boolean>;
+    /**
+     * Returns the list of (output) devices.
+     * 
+     * @return {PromiseLike<Device[]>} The promise with the list of output devices.
+     */
+    readonly getDevices: () => PromiseLike<Device[]>;
     /**
      * Returns the list of playlists.
      * 
@@ -199,9 +233,21 @@ export interface PlayerConfig {
      */
     readonly connectOnStartup?: boolean;
     /**
+     * The ID of the default output device.
+     */
+    readonly defaultOutputID?: any;
+    /**
+     * The name of the default output device.
+     */
+    readonly defaultOutputName?: string;
+    /**
      * A description for the player.
      */
     readonly description?: string;
+    /**
+     * The name of the output device, which should be selected after extension has been connected to the player.
+     */
+    readonly initialOutput?: string;
     /**
      * A (display) name for the player.
      */

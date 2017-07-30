@@ -28,11 +28,25 @@ import * as HTTPs from 'https';
 import * as Moment from 'moment';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
+import * as mplayer_players_helpers from './helpers';
 const SpotifyWebApi = require('spotify-web-api-node');
 import { Spotilocal } from 'spotilocal';
 import * as URL from 'url';
 import * as vscode from 'vscode';
 
+
+type DeviceSelector = () => PromiseLike<boolean>;
+
+interface WebAPIDevice {
+    id: string;
+    is_active: boolean;
+    is_restricted: boolean;
+    name: string;
+}
+
+interface WebAPIDeviceResult {
+    devices: WebAPIDevice[];
+}
 
 interface WebAPIPlayerStatus {
     repeat_state?: string;
@@ -551,6 +565,100 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /**
+     * Creates an output selector.
+     * 
+     * @param {any} client The API client.
+     * @param {mplayer_contracts.Device} device The device.
+     *  
+     * @returns {DeviceSelector} The selector.
+     */
+    protected createDeviceSelector(client: any, device: mplayer_contracts.Device): DeviceSelector {
+        const ME = this;
+
+        return () => {
+            return new Promise<boolean>((resolve, reject) => {
+                const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+                try {
+                    const CREDETIALS = client['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            const BODY = new Buffer(JSON.stringify({
+                                device_ids: [ device.id ],
+                            }), 'utf8');
+
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player',
+                                        method: 'PUT',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, async (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '204':
+                                                    // OK
+                                                    COMPLETED(null, true);
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+                                                        COMPLETED(null, false);
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            COMPLETED(e);
+                                        }
+                                    });
+
+                                    REQUEST.write( BODY );
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    COMPLETED(e);
+                                }
+                            };
+
+                            doRequest();
+                        }
+                        else {
+                            COMPLETED(null, false);
+                        }
+                    }
+                    else {
+                        COMPLETED(null, false);
+                    }
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            });
+        };
+    }
+
+    /**
      * Creates a track list provider for a playlist.
      * 
      * @param {any} client The Web API client.
@@ -723,6 +831,131 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                 }).catch((err) => {
                     COMPLETED(err);
                 });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /** @inheritdoc */
+    public getDevices(): Promise<mplayer_contracts.Device[]> {
+        const ME = this;
+
+        return new Promise<mplayer_contracts.Device[]>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+            const FALLBACK = () => {
+                const DEFAULT_DATA = mplayer_players_helpers.getDefaultOutputData(ME.config);
+
+                COMPLETED(null, [{
+                    id: DEFAULT_DATA.id,
+                    isActive: true,
+                    name: DEFAULT_DATA.id,
+                    player: ME,
+                    select: () => Promise.resolve(true),
+                }]);
+            };
+
+            try {
+                const CLIENT = await ME.api.getClient();
+                if (CLIENT) {
+                    const CREDETIALS = CLIENT['_credentials'];
+                    if (CREDETIALS) {
+                        const ACCESS_TOKEN = mplayer_helpers.toStringSafe( CREDETIALS['accessToken'] );
+                        if (!mplayer_helpers.isEmptyString(ACCESS_TOKEN)) {
+                            let doRequest: () => void;
+                            let retries = 5;
+
+                            doRequest = () => {
+                                try {
+                                    const OPTS: HTTP.RequestOptions = {
+                                        headers: {
+                                            'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                                        },
+                                        hostname: 'api.spotify.com',
+                                        path: '/v1/me/player/devices',
+                                        method: 'GET',
+                                    };
+
+                                    const REQUEST = HTTPs.request(OPTS, async (resp) => {
+                                        try {
+                                            switch (mplayer_helpers.normalizeString(resp.statusCode)) {
+                                                case '200':
+                                                    // OK
+                                                    {
+                                                        const RESULT: mplayer_contracts.Device[] = [];
+
+                                                        const BODY = await mplayer_helpers.getHttpBody(resp);
+                                                        if (BODY) {
+                                                            const DEVICES: WebAPIDeviceResult = JSON.parse(BODY.toString('utf8'));
+                                                            if (DEVICES && DEVICES.devices) {
+                                                                DEVICES.devices.filter(d => d).forEach(d => {
+                                                                    const NEW_DEVICE: mplayer_contracts.Device = {
+                                                                        id: mplayer_helpers.toStringSafe(d.id),
+                                                                        isActive: mplayer_helpers.toBooleanSafe(d.is_active),
+                                                                        name: mplayer_helpers.toStringSafe(d.name),
+                                                                        player: ME,
+                                                                        select: undefined,
+                                                                    };
+
+                                                                    let selector: DeviceSelector;
+                                                                    if (!mplayer_helpers.toBooleanSafe(d.is_restricted)) {
+                                                                        selector = ME.createDeviceSelector(CLIENT, NEW_DEVICE);
+                                                                    }
+                                                                    else {
+                                                                        // restricted
+                                                                        selector = () => Promise.resolve(false);
+                                                                    }
+
+                                                                    (<any>NEW_DEVICE)['select'] = selector;
+
+                                                                    RESULT.push(NEW_DEVICE);
+                                                                });
+                                                            }
+                                                        }
+
+                                                        COMPLETED(null, RESULT);
+                                                    }
+                                                    break;
+
+                                                case '202':
+                                                    // retry?
+                                                    if (retries-- > 0) {
+                                                        setTimeout(() => {
+                                                            doRequest();
+                                                        }, 5250);
+                                                    }
+                                                    else {
+                                                        // too many retries
+
+                                                        FALLBACK();
+                                                    }
+                                                    break;
+
+                                                default:
+                                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                                    break;
+                                            }
+                                        }
+                                        catch (e) {
+                                            FALLBACK();
+                                        }
+                                    });
+
+                                    REQUEST.end();
+                                }
+                                catch (e) {
+                                    FALLBACK();
+                                }
+                            }
+
+                            doRequest();
+                            return;
+                        }
+                    }
+                }
+
+                FALLBACK();
             }
             catch (e) {
                 COMPLETED(e);
