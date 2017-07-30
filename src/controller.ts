@@ -131,89 +131,6 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     }
 
     /**
-     * Configures a connected player.
-     * 
-     * @returns {Promise<boolean>} The promise that indicates if operation was successful or not.
-     */
-    public configure(): Promise<boolean> {
-        const ME = this;
-
-        return new Promise<boolean>(async (resolve, reject) => {
-            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
-
-            try {
-                const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
-
-                const QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
-                    let label = '';
-                    let description = '';
-                    if (c.player && c.player.config) {
-                        label = mplayer_helpers.toStringSafe(c.player.config.name).trim();
-                        description = mplayer_helpers.toStringSafe(c.player.config.description).trim();
-                    }
-
-                    if ('' === label) {
-                        label = `Player #${i + 1}`;
-                    }
-
-                    return {
-                        label: label,
-                        controls: c,
-                        description: description,
-                    };
-                }).filter(i => {
-                    return i.controls &&
-                           i.controls.player &&
-                           i.controls.player.configure;
-                });
-
-                if (QUICK_PICKS.length < 1) {
-                    vscode.window.showWarningMessage('[vs-media-player] No players found to configure!').then(() => {
-                    }, (err) => {
-                        ME.log(`MediaPlayerController.configure(2): ${mplayer_helpers.toStringSafe(err)}`);
-                    });
-
-                    COMPLETED(null);
-                    return;
-                }
-
-                const CONFIGURE = async (item: StatusBarControlsQuickPickItem) => {
-                    if (!item) {
-                        COMPLETED(null, false);
-                        return;
-                    }
-
-                    try {
-                        COMPLETED(null,
-                                  await item.controls.player.configure());
-                    }
-                    catch (e) {
-                        COMPLETED(e);
-                    }
-                };
-
-                if (QUICK_PICKS.length > 1) {
-                    vscode.window.showQuickPick(QUICK_PICKS, {
-                        placeHolder: 'Select the media player to disconnect from...',
-                    }).then(async (item) => {
-                        await CONFIGURE(item);
-                    }, (err) => {
-                        COMPLETED(err);
-                    });
-                }
-                else {
-                    await CONFIGURE(QUICK_PICKS[0]);
-                }
-            }
-            catch (e) {
-                ME.log(`MediaPlayerController.configure(1): ${mplayer_helpers.toStringSafe(e)}`);
-
-                COMPLETED(e);
-            }
-        });
-    }
-
-    /**
      * Connects to a player.
      * 
      * @returns {Promise<boolean>} The promise that indicates if operation was successful or not.
@@ -432,6 +349,89 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
         }
 
         return false;
+    }
+
+    /**
+     * Executes an action of a connected player.
+     * 
+     * @returns {Promise<boolean>} The promise that indicates if operation was successful or not.
+     */
+    public executePlayerAction(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>(async (resolve, reject) => {
+            const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
+
+            try {
+                const PLAYERS = (ME._connectedPlayers || []).filter(cp => cp);
+
+                const QUICK_PICKS: StatusBarControlsQuickPickItem[] = PLAYERS.map((c, i) => {
+                    let label = '';
+                    let description = '';
+                    if (c.player && c.player.config) {
+                        label = mplayer_helpers.toStringSafe(c.player.config.name).trim();
+                        description = mplayer_helpers.toStringSafe(c.player.config.description).trim();
+                    }
+
+                    if ('' === label) {
+                        label = `Player #${i + 1}`;
+                    }
+
+                    return {
+                        label: label,
+                        controls: c,
+                        description: description,
+                    };
+                }).filter(i => {
+                    return i.controls &&
+                           i.controls.player &&
+                           i.controls.player.executeAction;
+                });
+
+                if (QUICK_PICKS.length < 1) {
+                    vscode.window.showWarningMessage('[vs-media-player] No players found!').then(() => {
+                    }, (err) => {
+                        ME.log(`MediaPlayerController.executePlayerAction(2): ${mplayer_helpers.toStringSafe(err)}`);
+                    });
+
+                    COMPLETED(null);
+                    return;
+                }
+
+                const CONFIGURE = async (item: StatusBarControlsQuickPickItem) => {
+                    if (!item) {
+                        COMPLETED(null, false);
+                        return;
+                    }
+
+                    try {
+                        COMPLETED(null,
+                                  await item.controls.player.executeAction());
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                };
+
+                if (QUICK_PICKS.length > 1) {
+                    vscode.window.showQuickPick(QUICK_PICKS, {
+                        placeHolder: 'Select the media player for executing an action...',
+                    }).then(async (item) => {
+                        await CONFIGURE(item);
+                    }, (err) => {
+                        COMPLETED(err);
+                    });
+                }
+                else {
+                    await CONFIGURE(QUICK_PICKS[0]);
+                }
+            }
+            catch (e) {
+                ME.log(`MediaPlayerController.executePlayerAction(1): ${mplayer_helpers.toStringSafe(e)}`);
+
+                COMPLETED(e);
+            }
+        });
     }
 
     /**

@@ -73,9 +73,9 @@ export function activate(context: vscode.ExtensionContext) {
         await controller.disconnect();
     });
 
-    // configure a player
-    const CMD_CONFIGURE = vscode.commands.registerCommand('extension.mediaPlayer.configure', async () => {
-        await controller.configure();
+    // executes a player action
+    const CMD_EXECUTE_PLAYER_ACTION = vscode.commands.registerCommand('extension.mediaPlayer.executePlayerAction', async () => {
+        await controller.executePlayerAction();
     });
 
     // select item of playlist
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
     // commands
     context.subscriptions
            .push(CMD_CONNECT, CMD_DISCONNECT,
-                 CMD_CONFIGURE,
+                 CMD_EXECUTE_PLAYER_ACTION,
                  CMD_SELECT_ITEM_OF_PLAYLIST,
                  CMD_SPOTIFY_REGISTER_APP);
 

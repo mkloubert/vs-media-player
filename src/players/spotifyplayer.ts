@@ -482,62 +482,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /** @inheritdoc */
-    public configure(): Promise<boolean> {
-        const ME = this;
-
-        return new Promise<boolean>((resolve, reject) => {
-            const COMPLETED = ME.createCompletedAction(resolve, reject);
-
-            try {
-                const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
-
-                QUICK_PICKS.push({
-                    label: 'Delete cache of PLAYLISTS',
-                    description: '',
-                    action: () => {
-                        ME._playlistCache = null;
-                    }
-                });
-
-                let placeholder = 'Configure Spotify player';
-                {
-                    let name = mplayer_helpers.toStringSafe( ME.config.name ).trim();
-                    if ('' === name) {
-                        name = `Player ${ME.config.__id}`;
-                    }
-
-                    placeholder += ` '${name}'`;
-                }
-                placeholder += '...';
-
-                vscode.window.showQuickPick(QUICK_PICKS.sort((x, y) => {
-                    return mplayer_helpers.compareValuesBy(x, y,
-                                                           qp => mplayer_helpers.normalizeString(qp.label));
-                }), {
-                    placeHolder: placeholder,
-                }).then(async (item) => {
-                    try {
-                        if (item) {
-                            await Promise.resolve( item.action(item.state, item) );
-                        }
-                        else {
-                            COMPLETED(null, false);
-                        }
-                    }
-                    catch (e) {
-                        COMPLETED(e);
-                    }
-                }, (err) => {
-                    COMPLETED(err);
-                });
-            }
-            catch (e) {
-                COMPLETED(e);
-            }
-        });
-    }
-
-    /** @inheritdoc */
     public connect() {
         const ME = this;
 
@@ -693,6 +637,62 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
         this._playlistCache = null;
 
         this.removeAllListeners();
+    }
+
+    /** @inheritdoc */
+    public executeAction(): Promise<boolean> {
+        const ME = this;
+
+        return new Promise<boolean>((resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const QUICK_PICKS: mplayer_contracts.ActionQuickPickItem[] = [];
+
+                QUICK_PICKS.push({
+                    label: 'Delete cache of PLAYLISTS',
+                    description: '',
+                    action: () => {
+                        ME._playlistCache = null;
+                    }
+                });
+
+                let placeholder = 'Execute action for Spotify player';
+                {
+                    let name = mplayer_helpers.toStringSafe( ME.config.name ).trim();
+                    if ('' === name) {
+                        name = `Player ${ME.config.__id}`;
+                    }
+
+                    placeholder += ` '${name}'`;
+                }
+                placeholder += '...';
+
+                vscode.window.showQuickPick(QUICK_PICKS.sort((x, y) => {
+                    return mplayer_helpers.compareValuesBy(x, y,
+                                                           qp => mplayer_helpers.normalizeString(qp.label));
+                }), {
+                    placeHolder: placeholder,
+                }).then(async (item) => {
+                    try {
+                        if (item) {
+                            await Promise.resolve( item.action(item.state, item) );
+                        }
+                        else {
+                            COMPLETED(null, false);
+                        }
+                    }
+                    catch (e) {
+                        COMPLETED(e);
+                    }
+                }, (err) => {
+                    COMPLETED(err);
+                });
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
     }
 
     /** @inheritdoc */

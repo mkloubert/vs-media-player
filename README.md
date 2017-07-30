@@ -17,6 +17,7 @@
    * [Spotify](#spotify-)
      * [Web API](#web-api-)
    * [VLC](#vlc-)
+   * [Commands](#commands-)
 
 ## Install [[&uarr;](#table-of-contents)]
 
@@ -153,3 +154,15 @@ Now update your settings in VS Code:
     }
 }
 ```
+
+### Commands [[&uarr;](#how-to-use-)]
+
+Press `F1` to open the list of commands and enter one of the following commands:
+
+| Name | Description | ID | 
+| ---- | --------- | --------- | 
+| `Media Player: Connect` |  | `extension.mediaPlayer.connect` | 
+| `Media Player: Disconnect` |  | `extension.mediaPlayer.disconnect` | 
+| `Media Player: Execute player action` | Executes a player action | `extension.mediaPlayer.executePlayerAction` | 
+| `Media Player: Register app for Spotify` |  | `extension.mediaPlayer.registerApp` | 
+| `Media Player: Select item of playlist` |  | `extension.mediaPlayer.selectItemOfPlaylist` | 
