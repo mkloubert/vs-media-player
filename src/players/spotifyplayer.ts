@@ -340,7 +340,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                         'playlist-read-collaborative',
                                                         'playlist-read-private',
                                                         'user-read-playback-state' ].join(' '));
-                // url += "&show_dialog=" + encodeURIComponent('true');
+                url += "&show_dialog=" + encodeURIComponent('true');
 
                 let port: number;
                 let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
@@ -417,7 +417,11 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 });
                             }
 
-                            resp.writeHead(200);
+                            resp.writeHead(200, 'OK', {
+                                'Content-type': 'text/plain; charset=utf-8',
+                            });
+                            resp.write( new Buffer('Your account has been authorized with Spotify. You can close that browser / tab now.', 'utf8') );
+
                             resp.end();
                         }
                         catch (e) {
