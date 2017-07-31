@@ -36,6 +36,31 @@ import * as Xml2JS from 'xml2js';
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
 type TrackPlayer = () => PromiseLike<boolean>;
 
+
+/**
+ * A VLC player config entry.
+ */
+export interface VLCPlayerConfig extends mplayer_contracts.PlayerConfig {
+    /**
+     * The host of the HTTP service.
+     */
+    readonly host?: string;
+    /**
+     * The password to use.
+     */
+    readonly password?: string;
+    /**
+     * The TCP port of the HTTP service.
+     */
+    readonly port?: number;
+    /**
+     * Show all playlists or the first one only.
+     */
+    readonly showAllPlaylists?: boolean;
+    /** @inheritdoc */
+    readonly type: "vlc";
+}
+
 /**
  * A VLC player.
  */
@@ -43,7 +68,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     /**
      * Stores the underlying configuration.
      */
-    protected readonly _CONFIG: mplayer_contracts.VLCPlayerConfig;
+    protected readonly _CONFIG: VLCPlayerConfig;
     /**
      * Stores the underlying extension context.
      */
@@ -68,7 +93,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
      * @param {vscode.ExtensionContext} context The extension context.
      */
     constructor(id: number,
-                cfg: mplayer_contracts.VLCPlayerConfig, context: vscode.ExtensionContext) {
+                cfg: VLCPlayerConfig, context: vscode.ExtensionContext) {
         super();
 
         if (!cfg) {
@@ -128,7 +153,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
     /**
      * Gets the config.
      */
-    public get config(): mplayer_contracts.VLCPlayerConfig {
+    public get config(): VLCPlayerConfig {
         return this._CONFIG;
     }
 

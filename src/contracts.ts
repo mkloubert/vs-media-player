@@ -315,7 +315,7 @@ export interface PlayerConfig {
     /**
      * The type.
      */
-    readonly type?: "vlc" | "spotify";
+    readonly type: string;
 }
 
 /**
@@ -439,33 +439,6 @@ export enum RepeatType {
 }
 
 /**
- * A Spotify player config entry.
- */
-export interface SpotifyPlayerConfig extends PlayerConfig {
-    /**
-     * [INTERNAL USE]
-     * 
-     * Last OAuth code.
-     */
-    __code?: string;
-
-    /**
-     * The client ID of an own registered Spotify app.
-     */
-    readonly clientID?: string;
-    /**
-     * The client secret of an own registered Spotify app.
-     */
-    readonly clientSecret?: string;
-    /**
-     * The redirect URL for the authorization..
-     */
-    readonly redirectURL?: string;
-    /** @inheritdoc */
-    readonly type: "spotify";
-}
-
-/**
  * List of states.
  */
 export enum State {
@@ -520,28 +493,4 @@ export interface TrackSearchResult {
      * The tracks.
      */
     readonly tracks: Track[];
-}
-
-/**
- * A VLC player config entry.
- */
-export interface VLCPlayerConfig extends PlayerConfig {
-    /**
-     * The host of the HTTP service.
-     */
-    readonly host?: string;
-    /**
-     * The password to use.
-     */
-    readonly password?: string;
-    /**
-     * The TCP port of the HTTP service.
-     */
-    readonly port?: number;
-    /**
-     * Show all playlists or the first one only.
-     */
-    readonly showAllPlaylists?: boolean;
-    /** @inheritdoc */
-    readonly type: "vlc";
 }

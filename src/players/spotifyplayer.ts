@@ -30,6 +30,7 @@ import * as Moment from 'moment';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_helpers from './helpers';
+import * as mplayer_oauth from '../oauth';
 const SpotifyWebApi = require('spotify-web-api-node');
 import { Spotilocal } from 'spotilocal';
 import * as URL from 'url';
@@ -37,6 +38,34 @@ import * as vscode from 'vscode';
 
 
 type DeviceSelector = () => PromiseLike<boolean>;
+
+
+/**
+ * A Spotify player config entry.
+ */
+export interface SpotifyPlayerConfig extends mplayer_contracts.PlayerConfig {
+    /**
+     * [INTERNAL USE]
+     * 
+     * Last OAuth code.
+     */
+    __code?: string;
+
+    /**
+     * The client ID of an own registered Spotify app.
+     */
+    readonly clientID?: string;
+    /**
+     * The client secret of an own registered Spotify app.
+     */
+    readonly clientSecret?: string;
+    /**
+     * The redirect URL for the authorization.
+     */
+    readonly redirectURL?: string;
+    /** @inheritdoc */
+    readonly type: "spotify";
+}
 
 interface WebAPIDevice {
     id: string;
@@ -104,10 +133,10 @@ let nextCommandId = -1;
 const REPO_KEY = 'vscMediaPlayerSpotifyWebAPI';
 
 class WebApi {
-    protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
+    protected readonly _CONFIG: SpotifyPlayerConfig;
     protected readonly _CONTEXT: vscode.ExtensionContext;
     
-    constructor(cfg: mplayer_contracts.SpotifyPlayerConfig,
+    constructor(cfg: SpotifyPlayerConfig,
                 context: vscode.ExtensionContext) {
         this._CONFIG = cfg;
         this._CONTEXT = context;
@@ -117,7 +146,7 @@ class WebApi {
         return this._CONFIG.__code;
     }
 
-    public get config(): mplayer_contracts.SpotifyPlayerConfig {
+    public get config(): SpotifyPlayerConfig {
         return this._CONFIG;
     }
 
@@ -302,7 +331,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /**
      * Stores the underlying configuration.
      */
-    protected readonly _CONFIG: mplayer_contracts.SpotifyPlayerConfig;
+    protected readonly _CONFIG: SpotifyPlayerConfig;
     /**
      * Stores the underlying extension context.
      */
@@ -327,7 +356,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
      * @param {vscode.ExtensionContext} context The extension context.
      */
     constructor(id: number,
-                cfg: mplayer_contracts.SpotifyPlayerConfig, context: vscode.ExtensionContext) {
+                cfg: SpotifyPlayerConfig, context: vscode.ExtensionContext) {
         super();
 
         if (!cfg) {
@@ -355,7 +384,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     protected authorizeWithWebAPI(): Promise<any> {
         const ME = this;
 
-        return new Promise<any>((resolve, reject) => {
+        return new Promise<any>(async (resolve, reject) => {
             const COMPLETED = mplayer_helpers.createSimpleCompletedAction(resolve, reject);
 
             try {
@@ -381,8 +410,6 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                     return;
                 }
 
-                const R_URL = URL.parse(REDIRECT_URL);
-
                 let url = 'https://accounts.spotify.com/authorize/';
                 url += "?client_id=" + encodeURIComponent(CLIENT_ID);
                 url += "&response_type=" + encodeURIComponent('code');
@@ -392,126 +419,19 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                         'playlist-read-collaborative',
                                                         'playlist-read-private',
                                                         'user-read-playback-state' ].join(' '));
-                // url += "&show_dialog=" + encodeURIComponent('true');
 
-                let port: number;
-                let serverFactory: (requestListener?: (request: HTTP.IncomingMessage, response: HTTP.ServerResponse) => void) => HTTP.Server;
-                switch (mplayer_helpers.normalizeString(R_URL.protocol)) {
-                    case 'http:':
-                        port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
-                        if (isNaN(port)) {
-                            port = 80;
-                        }
+                let response = await mplayer_oauth.getOAuthCode('Spotify',
+                                                                url,
+                                                                REDIRECT_URL);
 
-                        serverFactory = function() {
-                            return HTTP.createServer
-                                        .apply(null, arguments);
-                        };
-                        break;
+                ME.config.__code = response.code;
 
-                    case 'https:':
-                        port = parseInt( mplayer_helpers.toStringSafe(R_URL.port).trim() );
-                        if (isNaN(port)) {
-                            port = 443;
-                        }
+                vscode.window.showInformationMessage("[vs-media-player] Authorization with Spotify succeeded.").then(() => {
+                }, (err) => {
+                    ME.log(`players.SpotifyPlayer.authorizeWithWebAPI(1): ${mplayer_helpers.toStringSafe(err)}`);
+                });
 
-                        serverFactory = function() {
-                            return HTTPs.createServer
-                                        .apply(null, arguments);
-                        };
-                        break;
-                }
-
-                if (serverFactory) {
-                    let server: HTTP.Server;
-                    const CLOSE_SERVER = (err: any) => {
-                        if (server) {
-                            try {
-                                server.close(() => {
-                                    COMPLETED(err);
-                                });
-                            }
-                            catch (e) {
-                                ME.log(`MediaPlayerController.authorizeForSpotify(5): ${mplayer_helpers.toStringSafe(e)}`);
-
-                                COMPLETED(err);
-                            }
-                        }
-                        else {
-                            COMPLETED(err);
-                        }
-                    };
-
-                    let handledRequest = false;
-                    server = serverFactory((req, resp) => {
-                        if (handledRequest) {
-                            return;
-                        }
-
-                        handledRequest = true;
-
-                        let err: any;
-                        try {
-                            const PARAMS = mplayer_helpers.queryParamsToObject( URL.parse(req.url).query );
-                            const CODE = PARAMS['code'];
-                            if (!mplayer_helpers.isEmptyString(CODE)) {
-                                ME.config.__code = CODE;
-
-                                vscode.window.showInformationMessage("[vs-media-player] Authorization with Spotify succeeded.").then(() => {
-                                }, (err) => {
-                                    ME.log(`MediaPlayerController.authorizeForSpotify(7): ${mplayer_helpers.toStringSafe(err)}`);
-                                });
-                            }
-                            else {
-                                vscode.window.showWarningMessage("[vs-media-player] Spotify send no (valid) code!").then(() => {
-                                }, (err) => {
-                                    ME.log(`MediaPlayerController.authorizeForSpotify(6): ${mplayer_helpers.toStringSafe(err)}`);
-                                });
-                            }
-
-                            resp.writeHead(200, 'OK', {
-                                'Content-type': 'text/plain; charset=utf-8',
-                            });
-                            resp.write( new Buffer('Your account has been authorized with Spotify. You can close that browser / tab now.', 'utf8') );
-
-                            resp.end();
-                        }
-                        catch (e) {
-                            err = e;
-                        }
-                        finally {
-                            CLOSE_SERVER(err);
-                        }
-                    });
-
-                    server.on('error', (err) => {
-                        if (err) {
-                            CLOSE_SERVER(err);
-                        }
-                    });
-
-                    server.listen(port, (err) => {
-                        if (err) {
-                            CLOSE_SERVER(err);
-                        }
-                        else {
-                            mplayer_helpers.open(url, {
-                                wait: false,
-                            }).then(() => {                                        
-                            }).catch((err) => {
-                                CLOSE_SERVER(err);
-                            });
-                        }
-                    });
-                }
-                else {
-                    vscode.window.showWarningMessage("[vs-media-player] HTTP protocol NOT supported!").then(() => {
-                    }, (err) => {
-                        ME.log(`MediaPlayerController.authorizeForSpotify(4): ${mplayer_helpers.toStringSafe(err)}`);
-                    });
-
-                    COMPLETED(null);
-                }
+                COMPLETED(null);
             }
             catch (e) {
                 COMPLETED(e);
@@ -529,7 +449,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /**
      * Gets the config.
      */
-    public get config(): mplayer_contracts.SpotifyPlayerConfig {
+    public get config(): SpotifyPlayerConfig {
         return this._CONFIG;
     }
 
