@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 // 
-// vs-script-commands (https://github.com/mkloubert/vs-script-commands)
+// vs-media-player (https://github.com/mkloubert/vs-media-player)
 // Copyright (c) Marcel Joachim Kloubert <marcel.kloubert@gmx.net>
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
