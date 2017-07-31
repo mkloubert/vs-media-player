@@ -2229,8 +2229,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                  {};
 
                     delete REPO[SETTINGS_KEY];
-
                     await Promise.resolve( ME.context.globalState.update(REPO_KEY, REPO) );
+
+                    ME.config.__code = null;
                 }
 
                 COMPLETED(null);
