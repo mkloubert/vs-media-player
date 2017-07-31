@@ -309,6 +309,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         }
                     });
 
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                     REQUEST.end();
                 }
                 catch (e) {
@@ -369,6 +371,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                             COMPLETED(e);
                         }
                     });
+
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                     REQUEST.end();
                 }
@@ -491,6 +495,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         COMPLETED(e);
                     }
                 });
+
+                mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                 REQUEST.end();
             }
@@ -766,6 +772,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                     }
                 });
 
+                mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                 REQUEST.end();
             }
             catch (e) {
@@ -841,6 +849,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         }
                     });
 
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                     REQUEST.end();
                 }
                 catch (e) {
@@ -882,6 +892,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         }
                     });
 
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                     REQUEST.end();
                 }
                 catch (e) {
@@ -922,6 +934,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                             COMPLETED(e);
                         }
                     });
+
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                     REQUEST.end();
                 }
@@ -979,6 +993,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                             COMPLETED(e);
                         }
                     });
+
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                     REQUEST.end();
                 }
@@ -1102,6 +1118,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                     }
                 });
 
+                mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                 REQUEST.end();
             }
             catch (e) {
@@ -1151,6 +1169,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                     }
                 });
 
+                mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                 REQUEST.end();
             }
             catch (e) {
@@ -1186,6 +1206,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         COMPLETED(e);
                     }
                 });
+
+                mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                 REQUEST.end();
             }
@@ -1265,6 +1287,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                         }
                     });
 
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                     REQUEST.end();
                 }
                 catch (e) {
@@ -1306,6 +1330,8 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                             COMPLETED(e);
                         }
                     });
+
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                     REQUEST.end();
                 }

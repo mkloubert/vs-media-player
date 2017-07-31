@@ -669,6 +669,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.write( BODY );
                                     REQUEST.end();
                                 }
@@ -991,6 +993,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1067,6 +1071,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     COMPLETED(e);
                                 }
                             });
+
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                             REQUEST.end();
                         }
@@ -1510,6 +1516,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1640,6 +1648,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1750,6 +1760,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     FALLBACK();
                                 }
                             });
+
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                             REQUEST.end();
                             return;
@@ -1862,6 +1874,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 }
                             });
 
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                             REQUEST.end();
                             return;
                         }
@@ -1948,6 +1962,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                             FALLBACK();
                                         }
                                     });
+
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                                     REQUEST.end();
                                 }
@@ -2063,6 +2079,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -2155,6 +2173,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                             FALLBACK();
                                         }
                                     });
+
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                                     REQUEST.end();
                                 }

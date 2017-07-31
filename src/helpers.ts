@@ -470,6 +470,23 @@ export function queryParamsToObject(query: string): { [name: string]: string } {
 }
 
 /**
+ * Registers a safe HTTP request error handler for a promise completed action.
+ * 
+ * @param {HTTP.ClientRequest} req The request.
+ * @param {SimpleCompletedAction<TResult>} completedAction The completed action.
+ */
+export function registerSafeHttpRequestErrorHandlerForCompletedAction<TResult>(req: HTTP.ClientRequest,
+                                                                               completedAction: SimpleCompletedAction<TResult>) {
+    if (req) {
+        req.on('error', (err) => {
+            if (completedAction) {
+                completedAction(err);
+            }  
+        });
+    }
+}
+
+/**
  * Replaces all occurrences of a string.
  * 
  * @param {any} str The input string.
