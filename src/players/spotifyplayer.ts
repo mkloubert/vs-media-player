@@ -144,8 +144,10 @@ class WebApi {
 
             if (!mplayer_helpers.isEmptyString(SETTINGS_KEY)) {
                 if (mplayer_helpers.isEmptyString(accessToken) || mplayer_helpers.isEmptyString(code) || !expiresIn) {
-                    // no enough data
+                    // not enough data
+                    
                     delete REPO[SETTINGS_KEY];
+                    ME.config.__code = null;
                 }
                 else {
                     clientToReturn = c;
