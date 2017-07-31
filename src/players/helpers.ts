@@ -25,6 +25,9 @@ import * as Enumerable from 'node-enumerable';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_controls from '../players/controls';
+import * as mplayer_players_httpplayer from '../players/httpplayer';
+import * as mplayer_players_mpdplayer from '../players/mpdplayer';
+import * as mplayer_players_scriptplayer from '../players/scriptplayer';
 import * as mplayer_players_spotifyplayer from '../players/spotifyplayer';
 import * as mplayer_players_vlcplayer from '../players/vlcplayer';
 import * as vscode from 'vscode';
@@ -85,9 +88,24 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
 
     let player: mplayer_contracts.MediaPlayer;
     switch (TYPE) {
+        case 'http':
+            player = new mplayer_players_httpplayer.HttpPlayer(ID,
+                                                               <mplayer_contracts.HttpPlayerConfig>cfg, context);
+            break;
+
+        case 'mpd':
+            player = new mplayer_players_mpdplayer.MPDPlayer(ID,
+                                                             <mplayer_contracts.MPDPlayerConfig>cfg, context);
+            break;
+
         case 'spotify':
             player = new mplayer_players_spotifyplayer.SpotifyPlayer(ID,
                                                                      <mplayer_contracts.SpotifyPlayerConfig>cfg, context);
+            break;
+
+        case 'script':
+            player = new mplayer_players_scriptplayer.ScriptPlayer(ID,
+                                                                   <mplayer_contracts.ScriptPlayerConfig>cfg, context);
             break;
 
         case 'vlc':
