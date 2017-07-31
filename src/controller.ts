@@ -112,17 +112,37 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      */
     protected addStatusBarControls(controls: mplayer_players_controls.StatusBarController): boolean {
         if (controls) {
-            this._connectedPlayers
-                .push(controls);
+            // disconnected
 
-            try {
-                controls.initialize();
-            }
-            catch (e) {
-                this.log(`MediaPlayerController.addStatusBarControls(): ${mplayer_helpers.toStringSafe(e)}`);
-            }
+            const CONNECTED_PLAYERS = this._connectedPlayers;
+            if (CONNECTED_PLAYERS) {
+                const PLAYER = controls.player;
 
-            return true;
+                PLAYER.once('disconnected', (err) => {
+                    try {
+                        let index: number;
+                        while ((index = CONNECTED_PLAYERS.indexOf(controls)) > -1) {
+                            CONNECTED_PLAYERS.splice(index, 1);
+
+                            mplayer_players_helpers.disposeControlsAndPlayer(controls);
+                        }
+                    }
+                    catch (e) { }
+                });
+
+                if (PLAYER.isConnected) {
+                    CONNECTED_PLAYERS.push(controls);
+
+                    try {
+                        controls.initialize();
+                    }
+                    catch (e) {
+                        this.log(`MediaPlayerController.addStatusBarControls(): ${mplayer_helpers.toStringSafe(e)}`);
+                    }
+
+                    return true;
+                }
+            }
         }
 
         return false;

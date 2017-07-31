@@ -669,6 +669,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
                                     REQUEST.write( BODY );
                                     REQUEST.end();
                                 }
@@ -991,6 +993,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1067,6 +1073,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     COMPLETED(e);
                                 }
                             });
+
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
                             REQUEST.end();
                         }
@@ -1510,6 +1518,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1640,6 +1652,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -1749,6 +1765,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 catch (e) {
                                     FALLBACK();
                                 }
+                            });
+
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                FALLBACK();
                             });
 
                             REQUEST.end();
@@ -1862,6 +1882,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 }
                             });
 
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                FALLBACK();
+                            });
+
                             REQUEST.end();
                             return;
                         }
@@ -1947,6 +1971,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         catch (e) {
                                             FALLBACK();
                                         }
+                                    });
+
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
                                     });
 
                                     REQUEST.end();
@@ -2063,6 +2091,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
+
                                     REQUEST.end();
                                 }
                                 catch (e) {
@@ -2154,6 +2186,10 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         catch (e) {
                                             FALLBACK();
                                         }
+                                    });
+
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
                                     });
 
                                     REQUEST.end();
