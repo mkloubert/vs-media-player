@@ -694,10 +694,9 @@ export class StatusBarController implements vscode.Disposable {
                             infoButton.show();
                         }
                     }
-                    catch (e) {
-
-                    }
+                    catch (e) { }
                 }
+                catch (e) { }
                 finally {
                     isUpdatingStatus = false;
                 }
