@@ -82,6 +82,14 @@ export interface Device {
 }
 
 /**
+ * A HTTP player config entry.
+ */
+export interface HttpPlayerConfig extends PlayerConfig {
+    /** @inheritdoc */
+    readonly type: "http";
+}
+
+/**
  * A media player.
  */
 export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
@@ -212,6 +220,14 @@ export interface MediaPlayer extends NodeJS.EventEmitter, vscode.Disposable {
 }
 
 /**
+ * A MusicPlayerDaemon (MPD) player config entry.
+ */
+export interface MPDPlayerConfig extends PlayerConfig {
+    /** @inheritdoc */
+    readonly type: "mpd";
+}
+
+/**
  * Describes the structure of the package file of that extenstion.
  */
 export interface PackageFile {
@@ -315,7 +331,7 @@ export interface PlayerConfig {
     /**
      * The type.
      */
-    readonly type?: "vlc" | "spotify";
+    readonly type?: "vlc" | "spotify" | "mpd" | "http" | "script";
 }
 
 /**
@@ -436,6 +452,14 @@ export enum RepeatType {
      * Repeat current
      */
     RepeatCurrent = 2,
+}
+
+/**
+ * A script player config entry.
+ */
+export interface ScriptPlayerConfig extends PlayerConfig {
+    /** @inheritdoc */
+    readonly type: "script";
 }
 
 /**
