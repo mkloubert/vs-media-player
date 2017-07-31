@@ -58,7 +58,7 @@ export class StatusBarController implements vscode.Disposable {
      * Stores the function that provides the extension context
      */
     protected readonly _CONTEXT_PROVIDER: () => vscode.ExtensionContext;
-        /**
+    /**
      * Stores the list of disposable items.
      */
     protected _disposables: vscode.Disposable[];
