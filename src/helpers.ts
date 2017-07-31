@@ -473,10 +473,10 @@ export function queryParamsToObject(query: string): { [name: string]: string } {
  * Registers a safe HTTP request error handler for a promise completed action.
  * 
  * @param {HTTP.ClientRequest} req The request.
- * @param {SimpleCompletedAction<TResult>} completedAction The completed action.
+ * @param {SimpleCompletedAction<TResult>} [completedAction] The completed action.
  */
 export function registerSafeHttpRequestErrorHandlerForCompletedAction<TResult>(req: HTTP.ClientRequest,
-                                                                               completedAction: SimpleCompletedAction<TResult>) {
+                                                                               completedAction?: SimpleCompletedAction<TResult>) {
     if (req) {
         req.on('error', (err) => {
             if (completedAction) {

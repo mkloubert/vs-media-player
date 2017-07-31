@@ -993,7 +993,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
@@ -1516,7 +1518,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
@@ -1648,7 +1652,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
@@ -1761,7 +1767,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 }
                             });
 
-                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                FALLBACK();
+                            });
 
                             REQUEST.end();
                             return;
@@ -1874,7 +1882,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                 }
                             });
 
-                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                            mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                FALLBACK();
+                            });
 
                             REQUEST.end();
                             return;
@@ -1963,7 +1973,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
@@ -2079,7 +2091,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
@@ -2174,7 +2188,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                         }
                                     });
 
-                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+                                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, () => {
+                                        FALLBACK();
+                                    });
 
                                     REQUEST.end();
                                 }
