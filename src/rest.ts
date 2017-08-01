@@ -163,6 +163,59 @@ export class RestClient {
     }
 
     /**
+     * Returns the request body.
+     * 
+     * @returns {Promise<Buffer>} The promise with the request body.
+     */
+    public async getBody(): Promise<Buffer> {
+        let body: Buffer;
+
+        const ENCODING = this.getEncodingSafe();
+
+        let generatedRequestBody: any;
+
+        // get content
+        const BODY_PROVIDER = this.bodyProvider;
+        if (BODY_PROVIDER) {
+            generatedRequestBody = await Promise.resolve( BODY_PROVIDER(this.bodyProviderState) );
+        }
+
+        if (!mplayer_helpers.isNullOrUndefined(generatedRequestBody)) {
+            if (Buffer.isBuffer(generatedRequestBody)) {
+                body = generatedRequestBody;
+            }
+            else {
+                // needs to be converted
+
+                if ('object' === typeof generatedRequestBody) {
+                    // make JSON
+                    body = new Buffer( JSON.stringify(generatedRequestBody), ENCODING );
+                }
+                else {
+                    // as string
+                    body = new Buffer( mplayer_helpers.toStringSafe(generatedRequestBody), ENCODING );
+                }
+            }
+        }
+
+        return body;
+    }
+
+    /**
+     * Returns a non empty encoding value.
+     * 
+     * @returns {string} The encoding.
+     */
+    public getEncodingSafe(): string {
+        let enc = mplayer_helpers.normalizeString(this.encoding);
+        if ('' === enc) {
+            enc = 'utf8';
+        }
+
+        return enc;
+    }
+
+    /**
      * Gets the encoding.
      */
     public get encoding(): string {
@@ -260,11 +313,6 @@ export class RestClient {
             try {
                 const REQUEST_URL = URL.parse(ME.url);
 
-                let defaultEncoding = mplayer_helpers.normalizeString(ME.encoding);
-                if ('' === defaultEncoding) {
-                    defaultEncoding = 'utf8';
-                }
-
                 let path = REQUEST_URL.pathname;
                 if (mplayer_helpers.isEmptyString(path)) {
                     path = '';
@@ -342,7 +390,7 @@ export class RestClient {
                             getString: async function(enc?: string) {
                                 enc = mplayer_helpers.normalizeString(enc);
                                 if ('' === enc) {
-                                    enc = defaultEncoding;
+                                    enc = ME.getEncodingSafe();
                                 }
 
                                 return (await this.getBody()).toString(enc);
@@ -362,27 +410,9 @@ export class RestClient {
 
                 mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
 
-                let requestBody: any;
-                
-                const BODY_PROVIDER = ME.bodyProvider;
-                const BODY_PROVIDER_STATE = ME.bodyProviderState;
-                if (BODY_PROVIDER) {
-                    requestBody = await Promise.resolve( BODY_PROVIDER(BODY_PROVIDER_STATE) );
-                }
-
-                if (!mplayer_helpers.isNullOrUndefined(requestBody)) {
-                    if (!Buffer.isBuffer(REQUEST.write(requestBody))) {
-                        if ('object' === typeof requestBody) {
-                            // make JSON
-                            requestBody = new Buffer( JSON.stringify(requestBody), defaultEncoding );
-                        }
-                        else {
-                            // as string
-                            requestBody = new Buffer( mplayer_helpers.toStringSafe(requestBody), defaultEncoding );
-                        }
-                    }
-
-                    REQUEST.write(requestBody);
+                const BODY = await ME.getBody();
+                if (BODY) {
+                    REQUEST.write( BODY );
                 }
 
                 REQUEST.end();
@@ -633,6 +663,22 @@ export class RestClient {
 
         this._url = url;
         return this;
+    }
+
+    /**
+     * Updates the content length header from the request body data.
+     * 
+     * @chainable
+     */
+    public async updateContentLength(): Promise<this> {
+        let headerValue: number;
+
+        const BODY = await this.getBody();
+        if (BODY) {
+            headerValue = BODY.length;
+        }
+        
+        return this.setHeader('Content-length', headerValue);
     }
 
     /**

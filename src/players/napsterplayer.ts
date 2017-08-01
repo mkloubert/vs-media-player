@@ -21,24 +21,26 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import * as Crypto from 'crypto';
 import * as Events from 'events';
+import * as Moment from 'moment';
+import * as mplayer_cache from '../cache';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_rest from '../rest';
 import * as vscode from 'vscode';
 
 
+interface AccessTokenResponse {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+};
+
 /**
  * A Napster player config entry.
  */
 export interface NapsterPlayerConfig extends mplayer_contracts.PlayerConfig {
-    /**
-     * [INTERNAL USE]
-     * 
-     * Last OAuth code.
-     */
-    __accessToken?: string;
-
     /**
      * The API key of an own registered Napster app.
      */
@@ -64,6 +66,10 @@ export interface NapsterPlayerConfig extends mplayer_contracts.PlayerConfig {
  */
 export class NapsterPlayer extends Events.EventEmitter implements mplayer_contracts.MediaPlayer {
     /**
+     * Stores the cache of access tokens.
+     */
+    protected readonly _ACCESS_TOKENS: mplayer_cache.MementoCache;
+    /**
      * Stores the underlying configuration.
      */
     protected readonly _CONFIG: NapsterPlayerConfig;
@@ -75,6 +81,10 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
      * Stores the ID.
      */
     protected readonly _ID: number;
+    /**
+     * Stores if player is connected or not.
+     */
+    protected _isConnected = false;
     /**
      * Stores if player has been initialized or not.
      */
@@ -97,6 +107,15 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
         this._ID = id;
         this._CONFIG = cfg;
         this._CONTEXT = context;
+        this._ACCESS_TOKENS = new mplayer_cache.MementoCache(context.globalState,
+                                                             'vscMediaPlayerNapsterAPI');
+    }
+
+    /**
+     * Gets the cache of all access tokens.
+     */
+    public get accessTokens(): mplayer_cache.MementoCache {
+        return this._ACCESS_TOKENS;
     }
 
     /**
@@ -119,47 +138,48 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
             }
 
             try {
-                interface AccessTokenResponse {
-                    access_token: string;
-                    refresh_token: string;
-                    expires_in: number;
-                };
+                const ACCESS_TOKEN = await ME.getNewAccessToken();
 
-                const API_KEY = mplayer_helpers.toStringSafe(ME.config.apiKey);
-                const API_SECRET = mplayer_helpers.toStringSafe(ME.config.apiSecret);
-                const USERNAME = mplayer_helpers.toStringSafe(ME.config.user).trim();
-                const PASSWORD = mplayer_helpers.toStringSafe(ME.config.password);
+                const CACHE_KEY = ME.getAccessTokenKey();
+                if (!mplayer_helpers.isEmptyString(CACHE_KEY)) {
+                    if (ACCESS_TOKEN && !mplayer_helpers.isEmptyString(ACCESS_TOKEN.access_token)) {
+                        let result = false;
+                        if ((await ME.accessTokens.set(CACHE_KEY, ACCESS_TOKEN.access_token, ACCESS_TOKEN.expires_in))) {
+                            // make an initial call to profile API
 
-                const ACCESS_TOKEN_CLIENT = new mplayer_rest.RestClient('https://api.napster.com/oauth/token');
-                ACCESS_TOKEN_CLIENT.setForm({
-                    'username': USERNAME,
-                    'password': PASSWORD,
-                    'grant_type': 'password',
-                }).setAuth(API_KEY, API_SECRET);
+                            const CLIENT = await ME.getClient();
+                            if (CLIENT) {
+                                const RESPONSE = await CLIENT.setUrl('https://api.napster.com/v2.2/me')
+                                                             .GET();
 
-                const ACCESS_TOKEN_REQUEST_LENGTH = (new Buffer( ACCESS_TOKEN_CLIENT.bodyProvider(null), 'utf8' )).length;
-                ACCESS_TOKEN_CLIENT.setHeader('Content-length', ACCESS_TOKEN_REQUEST_LENGTH);
+                                if (RESPONSE) {
+                                    result = !!(await RESPONSE.getJSON());
+                                }
+                            }
+                        }
 
-                const ACCESS_TOKEN_RESPONSE = await ACCESS_TOKEN_CLIENT.POST();
-                if ('200' !== mplayer_helpers.normalizeString(ACCESS_TOKEN_RESPONSE.response.statusCode)) {
-                    COMPLETED(new Error(`Unexpected status code: ${ACCESS_TOKEN_RESPONSE.response.statusCode}`));
-                    return;
-                }
-
-                const ACCESS_TOKEN = await ACCESS_TOKEN_RESPONSE.getJSON<AccessTokenResponse>();
-                if (ACCESS_TOKEN) {
-                    ME.config.__accessToken = mplayer_helpers.toStringSafe(ACCESS_TOKEN.access_token);
-
-                    COMPLETED(null);
+                        COMPLETED(null,
+                                  ME._isConnected = result);
+                    }
+                    else {
+                        COMPLETED(new Error('No access token received!'));
+                    }
                 }
                 else {
-                    COMPLETED(new Error('No access token received!'));
+                    COMPLETED(new Error('Invalid config data!'));
                 }
             }
             catch (e) {
                 COMPLETED(e);
             }
         });
+    }
+
+    /**
+     * Gets the extension context.
+     */
+    public get context(): vscode.ExtensionContext {
+        return this._CONTEXT;
     }
 
     /**
@@ -205,6 +225,75 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
         return this._CONTEXT;
     }
 
+    /**
+     * Gets the key for access token cache.
+     * 
+     * @returns {string} The key.
+     */
+    public getAccessTokenKey(): string {
+        const ME = this;
+
+        try {
+            const API_KEY = mplayer_helpers.toStringSafe(ME.config.apiKey);
+            if (!mplayer_helpers.isEmptyString(API_KEY)) {
+                const API_SECRET  = mplayer_helpers.toStringSafe(ME.config.apiSecret);
+                if (!mplayer_helpers.isEmptyString(API_SECRET)) {
+                    const KEY = `vsc-mpl\n` +
+                                `23091979_MK\n` + 
+                                `ID: ${ME.config.__id}\n` + 
+                                `API_KEY: ${API_KEY}\n` + 
+                                `API_SECRET: ${API_SECRET}\n` + 
+                                `05091979_TM`;
+
+                    return Crypto.createHash('sha256')
+                                 .update( new Buffer(KEY, 'utf8') )
+                                 .digest('hex');
+                }
+            }
+        }
+        catch (e) {
+            console.log(`[ERROR] NapsterPlayer.getAccessTokenCacheKey(): ${mplayer_helpers.toStringSafe(e)}`);
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns a new client.
+     * 
+     * @return {Promise<mplayer_rest.RestClient>} The promise with the client (if available).
+     */
+    public async getClient(): Promise<mplayer_rest.RestClient> {
+        let client: mplayer_rest.RestClient;
+
+        const CACHE_KEY = this.getAccessTokenKey();
+        if (!mplayer_helpers.isEmptyString(CACHE_KEY)) {
+            try {
+                let accessToken = await this.accessTokens.get(CACHE_KEY, '');
+
+                if (mplayer_helpers.isEmptyString(accessToken)) {
+                    const NEW_ACCESS_TOKEN = await this.getNewAccessToken();
+                    if (NEW_ACCESS_TOKEN) {
+                        accessToken = mplayer_helpers.toStringSafe( NEW_ACCESS_TOKEN.access_token );
+                        
+                        await this.accessTokens.set(CACHE_KEY, accessToken,
+                                                    NEW_ACCESS_TOKEN.expires_in);
+                    }
+                }
+
+                if (!mplayer_helpers.isEmptyString(accessToken)) {
+                    client = new mplayer_rest.RestClient();
+                    client.setBearer(accessToken);
+                }
+            }
+            catch (e) {
+                mplayer_helpers.log(`[ERROR] NapsterPlayerConfig.getClient(): ${mplayer_helpers.toStringSafe(e)}`);
+            }
+        }
+
+        return client;
+    }
+
     /** @inheritdoc */
     public getDevices(): Promise<mplayer_contracts.Device[]> {
         const ME = this;
@@ -214,6 +303,47 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
 
             try {
                 //TODO: implement
+            }
+            catch (e) {
+                COMPLETED(e);
+            }
+        });
+    }
+
+    /**
+     * Gets a new access token.
+     * 
+     * @returns {Promise<AccessTokenResponse>} The promise with the new token.
+     */
+    protected getNewAccessToken(): Promise<AccessTokenResponse> {
+        const ME = this;
+
+        return new Promise<AccessTokenResponse>(async (resolve, reject) => {
+            const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+            try {
+                const API_KEY = mplayer_helpers.toStringSafe(ME.config.apiKey);
+                const API_SECRET = mplayer_helpers.toStringSafe(ME.config.apiSecret);
+                const USERNAME = mplayer_helpers.toStringSafe(ME.config.user).trim();
+                const PASSWORD = mplayer_helpers.toStringSafe(ME.config.password);
+
+                const ACCESS_TOKEN_CLIENT = new mplayer_rest.RestClient('https://api.napster.com/oauth/token');
+                ACCESS_TOKEN_CLIENT.setForm({
+                    'username': USERNAME,
+                    'password': PASSWORD,
+                    'grant_type': 'password',
+                }).setAuth(API_KEY, API_SECRET);
+
+                await ACCESS_TOKEN_CLIENT.updateContentLength();
+
+                const ACCESS_TOKEN_RESPONSE = await ACCESS_TOKEN_CLIENT.POST();
+                if ('200' !== mplayer_helpers.normalizeString(ACCESS_TOKEN_RESPONSE.response.statusCode)) {
+                    COMPLETED(new Error(`Unexpected status code: ${ACCESS_TOKEN_RESPONSE.response.statusCode}`));
+                    return;
+                }
+
+                COMPLETED(null,
+                          await ACCESS_TOKEN_RESPONSE.getJSON<AccessTokenResponse>());
             }
             catch (e) {
                 COMPLETED(e);
@@ -267,7 +397,7 @@ export class NapsterPlayer extends Events.EventEmitter implements mplayer_contra
 
     /** @inheritdoc */
     public get isConnected(): boolean {
-        return !mplayer_helpers.isEmptyString(this.config.__accessToken);
+        return this._isConnected;
     }
 
     /** @inheritdoc */
