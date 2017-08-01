@@ -25,6 +25,7 @@ import * as Enumerable from 'node-enumerable';
 import * as mplayer_contracts from '../contracts';
 import * as mplayer_helpers from '../helpers';
 import * as mplayer_players_controls from '../players/controls';
+import * as mplayer_players_deezerplayer from '../players/deezerplayer';
 import * as mplayer_players_napsterplayer from '../players/napsterplayer';
 import * as mplayer_players_spotifyplayer from '../players/spotifyplayer';
 import * as mplayer_players_vlcplayer from '../players/vlcplayer';
@@ -86,6 +87,11 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
 
     let player: mplayer_contracts.MediaPlayer;
     switch (TYPE) {
+        case 'deezer':
+            player = new mplayer_players_deezerplayer.DeezerPlayer(ID,
+                                                                   <mplayer_players_deezerplayer.DeezerPlayerConfig>cfg, context);
+            break;
+
         case 'napster':
             player = new mplayer_players_napsterplayer.NapsterPlayer(ID,
                                                                      <mplayer_players_napsterplayer.NapsterPlayerConfig>cfg, context);

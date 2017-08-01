@@ -166,6 +166,7 @@
                                                 "description": "The ID of the default output device.",
                                                 "default": 1
                                             },
+
                                             "host": {
                                                 "type": "string",
                                                 "description": "The host of the (Lua) HTTP service.",
@@ -289,6 +290,7 @@
                                                 "description": "The ID of the default output device.",
                                                 "default": 1
                                             },
+
                                             "clientID": {
                                                 "type": "string",
                                                 "description": "The client ID of an own registered Spotify app."
@@ -423,6 +425,121 @@
                                         },
                                         "required": [
                                             "type", "apiKey", "apiSecret", "user", "password"
+                                        ]
+                                    },
+
+                                    {
+                                        "description": "A Deezer player.",
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "deezer"
+                                                ]
+                                            },
+                                            "buttonPriorityOffset": {
+                                                "type": "integer",
+                                                "description": "A custom offset value for controling the priority of the buttons.",
+                                                "default": 10
+                                            },
+                                            "connectOnStartup": {
+                                                "type": "boolean",
+                                                "description": "Connect on startup or not.",
+                                                "default": true
+                                            },
+                                            "description": {
+                                                "type": "string",
+                                                "description": "A description for the player."
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "description": "A (display) name for the player."
+                                            },
+                                            "showPlayerName": {
+                                                "type": "boolean",
+                                                "description": "Show player name or not.",
+                                                "default": false
+                                            },
+                                            "showPrevButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for playing PREVIOUS track or not.",
+                                                "default": true
+                                            },
+                                            "showNextButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for playing NEXT track or not.",
+                                                "default": true
+                                            },
+                                            "showRight": {
+                                                "type": "boolean",
+                                                "description": "Show buttons on the RIGHT side or not.",
+                                                "default": false
+                                            },
+                                            "showSearchButton": {
+                                                "type": "boolean",
+                                                "description": "Show search button or not.",
+                                                "default": true
+                                            },
+                                            "showToggleMuteButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle mute state or not.",
+                                                "default": true
+                                            },
+                                            "showTogglePlayButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle play state or not.",
+                                                "default": true
+                                            },
+                                            "showToggleRepeatingButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
+                                            },
+                                            "showToggleShuffleButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for toggle repeating state or not.",
+                                                "default": false
+                                            },
+                                            "showTrackSelectorButton": {
+                                                "type": "boolean",
+                                                "description": "Show button for selecting a track or not.",
+                                                "default": true
+                                            },
+                                            "showVolumeButtons": {
+                                                "type": "boolean",
+                                                "description": "Show buttons to change volume or not.",
+                                                "default": false
+                                            },
+                                            "initialOutput": {
+                                                "type": "string",
+                                                "description": "The name of the output device, which should be selected after extension has been connected to the player."
+                                            },
+                                            "defaultOutputName": {
+                                                "type": "string",
+                                                "description": "The name of the default output device.",
+                                                "default": "Main device"
+                                            },
+                                            "defaultOutputID": {
+                                                "description": "The ID of the default output device.",
+                                                "default": 1
+                                            },
+
+                                            "appID": {
+                                                "type": "string",
+                                                "description": "The ID of an own registered Deezer app."
+                                            },
+                                            "secretKey": {
+                                                "type": "string",
+                                                "description": "The secret key of an own registered Deezer app."
+                                            },
+                                            "redirectURL": {
+                                                "type": "string",
+                                                "description": "The redirect URL for the authorization."
+                                            }
+                                        },
+                                        "required": [
+                                            "type", "appID", "secretKey", "redirectURL"
                                         ]
                                     }
                                 ]

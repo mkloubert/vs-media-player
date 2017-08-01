@@ -220,7 +220,7 @@ export class MementoCache {
 
             const REPO = this.getRepositorySafe();
             REPO[key] = {
-                expiresIn: expireDate ? expireDate.format() : undefined,
+                expiresIn: expireDate ? expireDate.format(EXPIRE_DATE_FORMAT) : undefined,
                 value: value,
             };
 
