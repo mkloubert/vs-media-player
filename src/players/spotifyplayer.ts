@@ -1873,7 +1873,14 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                     id: -1,
                                                     getTracks: () => Promise.resolve( SEARCH_RESULT.tracks ),
                                                     name: '',
-                                                    play: undefined,
+                                                    play: async function() {
+                                                        const PLAYLIST_TRACKS: mplayer_contracts.Track[] = await this.getTracks();
+                                                        if (PLAYLIST_TRACKS.length > 0) {
+                                                            return await PLAYLIST_TRACKS[0].play();
+                                                        }
+
+                                                        return false;
+                                                    },
                                                     player: ME,
                                                 };
 
