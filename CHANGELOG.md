@@ -1,6 +1,6 @@
 # Change Log (vs-media-player)
 
-## 1.4.2 (August 2nd, 2017; playlist improvements)
+## 1.5.0 (August 2nd, 2017; playlist improvements)
 
 * improved playlist playback
 
