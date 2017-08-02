@@ -460,6 +460,14 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                                     getTracks: undefined,
                                                                     id: id,
                                                                     name: name,
+                                                                    play: async function() {
+                                                                        const PLAYLIST_TRACKS: mplayer_contracts.Track[] = await this.getTracks();
+                                                                        if (PLAYLIST_TRACKS.length > 0) {
+                                                                            return await PLAYLIST_TRACKS[0].play();
+                                                                        }
+
+                                                                        return false;
+                                                                    },
                                                                     player: ME,
                                                                 };
 

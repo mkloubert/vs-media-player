@@ -405,6 +405,13 @@ export interface Playlist {
      */
     readonly name?: string;
     /**
+     * Plays the playlist.
+     * 
+     * @return {PromiseLike<boolean>} The promise with the flag that indicates
+     *                                if operation was successful or not.
+     */
+    readonly play: () => PromiseLike<boolean>;
+    /**
      * Gets the underlying player.
      */
     readonly player: MediaPlayer;

@@ -314,10 +314,7 @@ export function searchPlaylists(player: mplayer_contracts.MediaPlayer,
 
                             return {
                                 action: async (currentList: mplayer_contracts.Playlist) => {
-                                    const TRACKS = ((await currentList.getTracks()) || []).filter(t => t);
-                                    if (TRACKS.length > 0) {
-                                        await TRACKS[0].play();
-                                    }
+                                    await currentList.play();
                                 },
                                 label: '$(list-unordered)  ' + `${label}`,
                                 description: DESCRIPTION,
