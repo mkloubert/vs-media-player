@@ -33,8 +33,9 @@ import * as Workflows from 'node-workflows';
 import * as Xml2JS from 'xml2js';
 
 
+type Player = () => PromiseLike<boolean>;
 type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
-type TrackPlayer = () => PromiseLike<boolean>;
+
 
 /**
  * A VLC player.
@@ -193,6 +194,69 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
             }
         };
     }
+    
+    /**
+     * Creates a player function.
+     * 
+     * @param {any} id The ID.
+     * 
+     * @return {Player} The function.
+     */
+    protected createPlayer(id: any): Player {
+        const ME = this;
+
+        return () => {
+            return new Promise<boolean>((resolve, reject) => {
+                const COMPLETED = ME.createCompletedAction(resolve, reject);
+
+                try {
+                    const BASE_URL = ME.baseURL;
+
+                    const HEADERS: any = {};
+
+                    const AUTH = mplayer_helpers.toStringSafe(BASE_URL.auth);
+                    if (AUTH.indexOf(':') > -1) {
+                        const PARTS = AUTH.split(':');
+
+                        HEADERS['Authorization'] = `Basic ${new Buffer(AUTH, 'ascii').toString('base64')}`;
+                    }
+                    
+                    const OPTS: HTTP.RequestOptions = {
+                        headers: HEADERS,
+                        host: BASE_URL.hostname,
+                        path: '/requests/status.xml?command=' + encodeURIComponent('pl_play') +
+                                                  '&id=' + encodeURIComponent( mplayer_helpers.toStringSafe(id) ),
+                        port: parseInt(BASE_URL.port),
+                        method: 'GET',
+                    };
+
+                    const REQUEST = HTTP.request(OPTS, (resp) => {
+                        try {
+                            switch (resp.statusCode) {
+                                case 200:
+                                    COMPLETED(null, true);
+                                    break;
+
+                                default:
+                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
+                                    break;
+                            }
+                        }
+                        catch (e) {
+                            COMPLETED(e);
+                        }
+                    });
+
+                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
+
+                    REQUEST.end();
+                }
+                catch (e) {
+                    COMPLETED(e);
+                }
+            });
+        };
+    }
 
     /**
      * Creates a track list provider for a playlist.
@@ -275,7 +339,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                                             playlist: playlist,
                                                                         };
 
-                                                                        (<any>NEW_TRACK)['play'] = ME.createTrackPlayer(NEW_TRACK);
+                                                                        (<any>NEW_TRACK)['play'] = ME.createPlayer(id);
 
                                                                         TRACKS.push(NEW_TRACK);
                                                                     });
@@ -297,69 +361,6 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                     }).catch((err) => {
                                         COMPLETED(err);
                                     });
-                                    break;
-
-                                default:
-                                    COMPLETED(`Unexpected status code: ${resp.statusCode}`);
-                                    break;
-                            }
-                        }
-                        catch (e) {
-                            COMPLETED(e);
-                        }
-                    });
-
-                    mplayer_helpers.registerSafeHttpRequestErrorHandlerForCompletedAction(REQUEST, COMPLETED);
-
-                    REQUEST.end();
-                }
-                catch (e) {
-                    COMPLETED(e);
-                }
-            });
-        };
-    }
-
-    /**
-     * Creates a player function for a track.
-     * 
-     * @param {mplayer_contracts.Track} track The track.
-     * 
-     * @return {TrackPlayer} The function.
-     */
-    protected createTrackPlayer(track: mplayer_contracts.Track): TrackPlayer {
-        const ME = this;
-
-        return () => {
-            return new Promise<boolean>((resolve, reject) => {
-                const COMPLETED = ME.createCompletedAction(resolve, reject);
-
-                try {
-                    const BASE_URL = ME.baseURL;
-
-                    const HEADERS: any = {};
-
-                    const AUTH = mplayer_helpers.toStringSafe(BASE_URL.auth);
-                    if (AUTH.indexOf(':') > -1) {
-                        const PARTS = AUTH.split(':');
-
-                        HEADERS['Authorization'] = `Basic ${new Buffer(AUTH, 'ascii').toString('base64')}`;
-                    }
-                    
-                    const OPTS: HTTP.RequestOptions = {
-                        headers: HEADERS,
-                        host: BASE_URL.hostname,
-                        path: '/requests/status.xml?command=' + encodeURIComponent('pl_play') +
-                                                  '&id=' + encodeURIComponent( mplayer_helpers.toStringSafe(track.id) ),
-                        port: parseInt(BASE_URL.port),
-                        method: 'GET',
-                    };
-
-                    const REQUEST = HTTP.request(OPTS, (resp) => {
-                        try {
-                            switch (resp.statusCode) {
-                                case 200:
-                                    COMPLETED(null, true);
                                     break;
 
                                 default:
@@ -460,14 +461,7 @@ export class VLCPlayer extends Events.EventEmitter implements mplayer_contracts.
                                                                     getTracks: undefined,
                                                                     id: id,
                                                                     name: name,
-                                                                    play: async function() {
-                                                                        const PLAYLIST_TRACKS: mplayer_contracts.Track[] = await this.getTracks();
-                                                                        if (PLAYLIST_TRACKS.length > 0) {
-                                                                            return await PLAYLIST_TRACKS[0].play();
-                                                                        }
-
-                                                                        return false;
-                                                                    },
+                                                                    play: ME.createPlayer(id),
                                                                     player: ME,
                                                                 };
 
