@@ -624,7 +624,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     /**
      * Creates a function for playing a playlist.
      * 
-     * @param uri 
+     * @param {string} uri The URI of the playlist.
+     * 
+     * @return {PlaylistPlayer} The new function.
      */
     protected createPlaylistPlayer(uri: string): PlaylistPlayer {
         const ME = this;
