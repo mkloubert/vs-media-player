@@ -72,11 +72,9 @@ export async function playTrack(player: mplayer_contracts.MediaPlayer,
 
                 const PL_ITEM: mplayer_contracts.ActionQuickPickItem = {
                     description: '',
-                    action: async () => {
+                    action: async (currentList: mplayer_contracts.Playlist) => {
                         try {
-                            if (TRACKS.length > 0) {
-                                await TRACKS[0].play();
-                            }
+                            await currentList.play();
                         }
                         catch (e) {
                             mplayer_helpers.log(`[ERROR] playlists.playTrack(5): ${mplayer_helpers.toStringSafe(e)}`);
