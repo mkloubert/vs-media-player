@@ -1,8 +1,8 @@
 # Change Log (vs-media-player)
 
-## 1.4.0 (August 1st, 2017; napster support)
+## 1.4.0 (August 2nd, 2017; playlist improvements)
 
-* added support for [Napster](https:/www.napster.com)
+* improved playlist playback
 
 ## 1.3.10 (July 31st, 2017; playlist search)
 
