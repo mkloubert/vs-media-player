@@ -792,6 +792,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                     try {
                         if (item) {
                             await Promise.resolve( item.action(item.state, item) );
+
+                            COMPLETED(null, true);
                         }
                         else {
                             COMPLETED(null, false);
