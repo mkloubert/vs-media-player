@@ -74,11 +74,11 @@ const KEY_TRACK_SEARCH_EXPR_REPO = 'vscMediaPlayerTrackSearchExpressionRepositor
  */
 export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
                                 context: vscode.ExtensionContext): Promise<ConnectToResult> {
-    const ID = cfg.__id;
-
     if (!cfg) {
         cfg = <any>{};
     }
+
+    const ID = cfg.__id;
 
     let result: ConnectToResult;
 
@@ -136,14 +136,16 @@ export async function connectTo(cfg: mplayer_contracts.PlayerConfig,
             if ('' !== INITIAL_OUTPUT) {
                 const DEVICES = await result.player.getDevices();
                 
-                Enumerable.from(DEVICES).where(d => {
+                const MACHTING_DEVICES = Enumerable.from(DEVICES).where(d => {
                     return INITIAL_OUTPUT === mplayer_helpers.normalizeString(d.name);
-                }).forEach(async (d) => {
+                }).toArray();
+
+                for (let i = 0; i < MACHTING_DEVICES.length; i++) {
                     try {
-                        await d.select();
+                        await MACHTING_DEVICES[i].select();
                     }
                     catch (e) {}
-                });
+                }
             }
         }
         catch (e) {}

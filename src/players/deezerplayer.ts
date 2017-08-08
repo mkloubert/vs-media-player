@@ -84,6 +84,7 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
      * Stores the ID.
      */
     protected readonly _ID: number;
+    protected _isConnected = false;
     /**
      * Stores if player has been initialized or not.
      */
@@ -128,7 +129,7 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
         const API_ID = mplayer_helpers.toStringSafe(this.config.appID);
         const SECRET_KEY = mplayer_helpers.toStringSafe(this.config.secretKey);
         const REDIRECT_URL = mplayer_helpers.toStringSafe(this.config.redirectURL);
-        const PERMS = [ 'basic_access', 'email' ];
+        const PERMS = [ 'basic_access', 'email', 'listening_history' ];
 
         let url = 'https://connect.deezer.com/oauth/auth.php';
         url += "?app_id=" + encodeURIComponent(API_ID);
@@ -155,28 +156,28 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
     public async connect(): Promise<boolean> {
         let result = false;
 
-        if (!this.isConnected) {
-            let code: string;
+        let code: string;
 
-            const CACHE_KEY = this.getAccessTokenKey();
-            if (!mplayer_helpers.isEmptyString(CACHE_KEY)) {
-                const ACCESS_TOKEN = this.accessTokens.get<AccessToken>(CACHE_KEY);
-                if (ACCESS_TOKEN) {
-                    code = ACCESS_TOKEN.code;
-                }
+        const CACHE_KEY = this.getAccessTokenKey();
+        if (!mplayer_helpers.isEmptyString(CACHE_KEY)) {
+            const ACCESS_TOKEN = this.accessTokens.get<AccessToken>(CACHE_KEY);
+            if (ACCESS_TOKEN) {
+                code = ACCESS_TOKEN.code;
             }
+        }
 
-            if (mplayer_helpers.isEmptyString(code)) {
-                code = await this.authorizeWithAPI();
-            }
+        code = null;
 
-            this.config.__code = code;
+        if (mplayer_helpers.isEmptyString(code)) {
+            code = await this.authorizeWithAPI();
+        }
 
-            if (!mplayer_helpers.isEmptyString(this.config.__code)) {
-                const ACCESS_TOKEN = await this.getNewAccessToken();
-                if (ACCESS_TOKEN) {
-                    result = true;
-                }
+        this.config.__code = code;
+
+        if (!mplayer_helpers.isEmptyString(this.config.__code)) {
+            const ACCESS_TOKEN = await this.getNewAccessToken();
+            if (ACCESS_TOKEN) {
+                result = true;
             }
         }
 
@@ -184,7 +185,7 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
             result = !!(await this.getClient());
         }
 
-        return result;
+        return this._isConnected = result;
     }
 
     /**
@@ -383,7 +384,7 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
     public getStatus() {
         const ME = this;
 
-        return new Promise<mplayer_contracts.PlayerStatus>((resolve, reject) => {
+        return new Promise<mplayer_contracts.PlayerStatus>(async (resolve, reject) => {
             const COMPLETED = ME.createCompletedAction(resolve, reject);
 
             try {
@@ -413,7 +414,8 @@ export class DeezerPlayer extends Events.EventEmitter implements mplayer_contrac
         if (!mplayer_helpers.isEmptyString(CACHE_KEY)) {
             const NOT_FOUND = Symbol('NOT_FOUND');
 
-            return NOT_FOUND !== this.accessTokens.get(CACHE_KEY, NOT_FOUND);
+            return this._isConnected &&
+                   (NOT_FOUND !== this.accessTokens.get(CACHE_KEY, NOT_FOUND));
         }
 
         return false;

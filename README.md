@@ -106,6 +106,7 @@ A player entry supports the following, common properties:
 | Play track |  | X |
 | Search for playlists |  | X |
 | Search for tracks |  | X |
+| Select output |  | X |
 | Toggle repeating | (only state is displayed) | X |
 | Toggle shuffle | (only state is displayed) | X |
 | Volume down |  | X |
