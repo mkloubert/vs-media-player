@@ -98,7 +98,6 @@ A player entry supports the following, common properties:
 | ---- |:--:|:--:|
 | Load playlists | &nbsp; | X |
 | Mute volume |  | X |
-| Mute volume |  | X |
 | Pause | X | X |
 | Play | X | X |
 | Play next track |  | X |
