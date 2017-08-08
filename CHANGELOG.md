@@ -1,6 +1,6 @@
 # Change Log (vs-media-player)
 
-## 1.5.1 (August 8th, 2017; fixes)
+## 1.5.2 (August 8th, 2017; fixes)
 
 * minor fixes
 
