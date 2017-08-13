@@ -1,5 +1,9 @@
 # Change Log (vs-media-player)
 
+## 1.5.3 (August 13th, 2017; fixes)
+
+* bug fixes in Spotify player
+
 ## 1.5.2 (August 8th, 2017; fixes)
 
 * minor fixes

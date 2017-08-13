@@ -133,7 +133,8 @@ class WebApi {
 
         let client: any = null;
         
-        const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY);
+        const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY) ||
+                     <any>{};
 
         let settings: WebAPISettings;
         const SETTINGS_KEY = ME.getSettingsKey();
