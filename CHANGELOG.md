@@ -1,5 +1,21 @@
 # Change Log (vs-media-player)
 
+## 1.5.3 (August 13th, 2017; fixes)
+
+* bug fixes in Spotify player
+
+## 1.5.2 (August 8th, 2017; fixes)
+
+* minor fixes
+
+## 1.5.1 (August 6th, 2017; fixes)
+
+* minor fixes
+
+## 1.5.0 (August 2nd, 2017; playlist improvements)
+
+* improved playlist playback
+
 ## 1.3.10 (July 31st, 2017; playlist search)
 
 * can search for playlists now

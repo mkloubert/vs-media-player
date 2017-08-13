@@ -38,6 +38,12 @@ import * as vscode from 'vscode';
 
 type DeviceSelector = () => PromiseLike<boolean>;
 
+type PlaylistPlayer = () => PromiseLike<boolean>;
+
+type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
+
+type TrackPlayer = () => PromiseLike<boolean>;
+
 interface WebAPIDevice {
     id: string;
     is_active: boolean;
@@ -96,9 +102,6 @@ interface WebAPITrackSearchResultItem {
     uri: string;
 }
 
-type TrackListProvider = () => PromiseLike<mplayer_contracts.Track[]>;
-
-type TrackPlayer = () => PromiseLike<boolean>;
 
 let nextCommandId = -1;
 const REPO_KEY = 'vscMediaPlayerSpotifyWebAPI';
@@ -130,7 +133,8 @@ class WebApi {
 
         let client: any = null;
         
-        const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY);
+        const REPO = ME.context.globalState.get<WebAPISettingsRepository>(REPO_KEY) ||
+                     <any>{};
 
         let settings: WebAPISettings;
         const SETTINGS_KEY = ME.getSettingsKey();
@@ -699,6 +703,37 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
     }
 
     /**
+     * Creates a function for playing a playlist.
+     * 
+     * @param {string} uri The URI of the playlist.
+     * 
+     * @return {PlaylistPlayer} The new function.
+     */
+    protected createPlaylistPlayer(uri: string): PlaylistPlayer {
+        const ME = this;
+
+        uri = mplayer_helpers.toStringSafe(uri);
+        
+        return async () => {
+            try {
+                if (ME.isConnected) {
+                    const STATUS = await ME.client.play(uri);
+                    if (STATUS) {
+                        return mplayer_helpers.toBooleanSafe( STATUS.playing, true );
+                    }
+
+                    return;
+                }
+            }
+            catch (e) {
+                console.log(`[ERROR] SpotifyPlayer.createPlaylistPlayer(): ${mplayer_helpers.toStringSafe(e)}`);
+            }
+
+            return false;
+        };
+    }
+
+    /**
      * Creates a track list provider for a playlist.
      * 
      * @param {any} client The Web API client.
@@ -838,6 +873,8 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                     try {
                         if (item) {
                             await Promise.resolve( item.action(item.state, item) );
+
+                            COMPLETED(null, true);
                         }
                         else {
                             COMPLETED(null, false);
@@ -1130,6 +1167,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                             id: mplayer_helpers.toStringSafe(i['uri']),
                                             getTracks: undefined,
                                             name: mplayer_helpers.toStringSafe(i['name']),
+                                            play: ME.createPlaylistPlayer(i['uri']),
                                             player: ME,
                                         };
 
@@ -1291,6 +1329,9 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                     id: '1',
                                     getTracks: () => {
                                         return Promise.resolve( [ track ] );
+                                    },
+                                    play: async function() {
+                                        return await this.getTracks()[0].play();
                                     },
                                     player: ME,
                                 };
@@ -1736,6 +1777,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                                     id: mplayer_helpers.toStringSafe(pl.uri),
                                                                     name: mplayer_helpers.toStringSafe(pl.name),
                                                                     getTracks: undefined,
+                                                                    play: ME.createPlaylistPlayer(pl.uri),
                                                                     player: ME,
                                                                 };
 
@@ -1836,6 +1878,14 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
                                                     id: -1,
                                                     getTracks: () => Promise.resolve( SEARCH_RESULT.tracks ),
                                                     name: '',
+                                                    play: async function() {
+                                                        const PLAYLIST_TRACKS: mplayer_contracts.Track[] = await this.getTracks();
+                                                        if (PLAYLIST_TRACKS.length > 0) {
+                                                            return await PLAYLIST_TRACKS[0].play();
+                                                        }
+
+                                                        return false;
+                                                    },
                                                     player: ME,
                                                 };
 
