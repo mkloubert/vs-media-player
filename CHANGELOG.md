@@ -1,5 +1,9 @@
 # Change Log (vs-media-player)
 
+## 1.7.0 (September 21st, 2017; spotilocal)
+
+* updated to [spotilocal](https://www.npmjs.com/package/spotilocal) v0.2.0
+
 ## 1.6.0 (September 15th, 2017; spotilocal)
 
 * forced reference to [spotilocal](https://www.npmjs.com/package/spotilocal) module to v0.1.0
