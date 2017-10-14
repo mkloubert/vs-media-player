@@ -27,6 +27,7 @@ import * as FS from 'fs';
 import * as mplayer_contracts from './contracts';
 import * as mplayer_controller from './controller';
 import * as mplayer_helpers from './helpers';
+import * as mplayer_workspace from './workspace';
 import * as Path from 'path';
 import * as vscode from 'vscode';
 
@@ -62,6 +63,9 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     controller = new mplayer_controller.MediaPlayerController(context, OUTPUT_CHANNEL, pkgFile);
+
+    context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(controller.onDidChangeWorkspaceFolders, controller));
+    mplayer_workspace.resetSelectedWorkspaceFolder();
 
     // connect to player
     const CMD_CONNECT = vscode.commands.registerCommand('extension.mediaPlayer.connect', async () => {

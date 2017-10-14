@@ -31,6 +31,7 @@ import * as mplayer_helpers from './helpers';
 import * as mplayer_players_controls from './players/controls';
 import * as mplayer_players_helpers from './players/helpers';
 import * as mplayer_players_vlcplayer from './players/vlcplayer';
+import * as mplayer_workspace from './workspace';
 import * as URL from 'url';
 import * as vscode from 'vscode';
 import * as Workflows from 'node-workflows';
@@ -476,6 +477,13 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     }
 
     /**
+     * Gets if the extension is currently active or not.
+     */
+    public get isActive(): boolean {
+        return !mplayer_helpers.isEmptyString(mplayer_workspace.getRootPath());
+    }
+
+    /**
      * Loads a message.
      * 
      * @param {any} msg The message to log.
@@ -514,6 +522,15 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
     }
 
     /**
+     * Event after list of workspace folders changed.
+     * 
+     * @param {vscode.WorkspaceFoldersChangeEvent} e The event arguments.
+     */
+    public onDidChangeWorkspaceFolders(e: vscode.WorkspaceFoldersChangeEvent) {
+        this.reloadConfiguration();
+    }
+
+    /**
      * Gets the global output channel.
      */
     public get outputChannel(): vscode.OutputChannel {
@@ -532,6 +549,11 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      */
     public reloadConfiguration() {
         const ME = this;
+
+        if (!ME.isActive) {
+            ME._config = null;
+            return;  // not active
+        }
 
         const SHOW_ERROR = (err: any) => {
             vscode.window.showErrorMessage(`Could not (re)load config: ${mplayer_helpers.toStringSafe(err)}`).then(() => {

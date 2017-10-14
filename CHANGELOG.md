@@ -1,5 +1,9 @@
 # Change Log (vs-media-player)
 
+## 2.0.0 (October 14th, 2017; multi root support)
+
+* started to refactor to new, upcoming [Multi Root Workspace API](https://github.com/Microsoft/vscode/wiki/Extension-Authoring:-Adopting-Multi-Root-Workspace-APIs)
+
 ## 1.7.0 (September 21st, 2017; spotilocal)
 
 * updated to [spotilocal](https://www.npmjs.com/package/spotilocal) v0.2.0
