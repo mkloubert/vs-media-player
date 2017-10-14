@@ -153,7 +153,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      * Gets the current configuration.
      */
     public get config(): mplayer_contracts.Configuration {
-        return this._config;
+        return this._config || <any>{};
     }
 
     /**
@@ -549,11 +549,6 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
      */
     public reloadConfiguration() {
         const ME = this;
-
-        if (!ME.isActive) {
-            ME._config = null;
-            return;  // not active
-        }
 
         const SHOW_ERROR = (err: any) => {
             vscode.window.showErrorMessage(`Could not (re)load config: ${mplayer_helpers.toStringSafe(err)}`).then(() => {

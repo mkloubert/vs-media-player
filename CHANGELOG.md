@@ -1,6 +1,6 @@
 # Change Log (vs-media-player)
 
-## 2.0.0 (October 14th, 2017; multi root support)
+## 2.0.1 (October 14th, 2017; multi root support)
 
 * started to refactor to new, upcoming [Multi Root Workspace API](https://github.com/Microsoft/vscode/wiki/Extension-Authoring:-Adopting-Multi-Root-Workspace-APIs)
 
