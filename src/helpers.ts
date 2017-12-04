@@ -25,6 +25,7 @@ import * as ChildProcess from 'child_process';
 import * as Enumerable from 'node-enumerable';
 import * as HTTP from 'http';
 import * as Moment from 'moment';
+import * as mplayer_workspace from './workspace';
 import * as Path from 'path';
 import * as vscode from 'vscode';
 
@@ -345,7 +346,7 @@ export function open(target: string, opts?: OpenOptions): Promise<ChildProcess.C
             let appArgs: string[] = [];
             let args: string[] = [];
             let cpOpts: ChildProcess.SpawnOptions = {
-                cwd: opts.cwd || vscode.workspace.rootPath,
+                cwd: opts.cwd || mplayer_workspace.getRootPath(),
                 env: opts.env,
             };
 
