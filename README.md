@@ -119,11 +119,12 @@ First of all, you have to register an app [here](https://developer.spotify.com/m
 
 <kbd>![Register app in Spotify](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify1.png)</kbd>
 
+Define a redirect URI that does really exist and can delegate to the PC, where your VS Code is running.
+The easiest way to use, is `localhost`, like `http://localhost`.
+
 After you have added the app, you need to select and edit it (`My Applications` on the upper left side):
 
 <kbd>![Edit registrated app](https://raw.githubusercontent.com/mkloubert/vs-media-player/master/img/spotify2.png)</kbd>
-
-Define a redirect URI that does really exist and can delegate to the PC, where your VS Code is running. So keep sure, that your firewall will NOT block the TCP port, you have specified in your redirect URI.
 
 What happens is, that, when you start authorizing, your browser is open with a Spotify address, where you are asked, if your account wants to be connected with the app, you have registered:
 

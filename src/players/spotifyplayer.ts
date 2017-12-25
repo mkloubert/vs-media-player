@@ -409,7 +409,7 @@ export class SpotifyPlayer extends Events.EventEmitter implements mplayer_contra
 
                         serverFactory = function() {
                             return HTTP.createServer
-                                        .apply(null, arguments);
+                                       .apply(null, arguments);
                         };
                         break;
 

@@ -1,5 +1,9 @@
 # Change Log (vs-media-player)
 
+## 3.0.1 (December 25th, 2017; README)
+
+* updated README
+
 ## 3.0.0 (December 4th, 2017; spotilocal)
 
 * updated to [spotilocal](https://www.npmjs.com/package/spotilocal) v0.4.4
