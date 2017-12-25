@@ -1,6 +1,6 @@
 # Change Log (vs-media-player)
 
-## 3.0.1 (December 25th, 2017; README)
+## 3.0.2 (December 25th, 2017; README)
 
 * updated README
 
