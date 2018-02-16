@@ -895,7 +895,7 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                             return {
                                 label: '$(triangle-right)  ' + `[${i + 1}] ${label}`,
                                 description: DESCRIPTION,
-                                track: t,
+                                track: t,                                
                             };
                         });
 
@@ -915,7 +915,11 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                             }
                         }
                         else {
-                            vscode.window.showWarningMessage(`[vs-media-player] Could not find a playlist in '${item.label}'!`).then(() => {
+                            const PLAYLIST_NAME = item.label
+                                                      .substr(item.label.indexOf(' '))
+                                                      .trim();
+
+                            vscode.window.showWarningMessage(`[vs-media-player] Could not find a track in '${PLAYLIST_NAME}'!`).then(() => {
                             }, (err) => {
                                 ME.log(`MediaPlayerController.selectItemOfPlaylist(3): ${mplayer_helpers.toStringSafe(err)}`);
                             });
@@ -970,7 +974,11 @@ export class MediaPlayerController extends Events.EventEmitter implements vscode
                             }
                         }
                         else {
-                            vscode.window.showWarningMessage(`[vs-media-player] Could not find a playlist in '${item.label}'!`).then(() => {
+                            const PLAYER_NAME = item.label
+                                                    .substr(item.label.indexOf(' '))
+                                                    .trim();
+
+                            vscode.window.showWarningMessage(`[vs-media-player] Could not find a playlist in '${PLAYER_NAME}'!`).then(() => {
                             }, (err) => {
                                 ME.log(`MediaPlayerController.selectItemOfPlaylist(3): ${mplayer_helpers.toStringSafe(err)}`);
                             });

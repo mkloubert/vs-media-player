@@ -1,5 +1,13 @@
 # Change Log (vs-media-player)
 
+## 3.1.0 (February 16th, 2018; npm packages)
+
+* bugfixes
+* updated [npm](https://www.npmjs.com) packages:
+  * [moment](https://www.npmjs.com/package/moment) `2.20.1`
+  * [spotify-web-api-node](https://www.npmjs.com/package/spotify-web-api-node) `2.5.0`
+  * [xml2js](https://www.npmjs.com/package/xml2js) `0.4.19`
+
 ## 3.0.2 (December 25th, 2017; README)
 
 * updated README
